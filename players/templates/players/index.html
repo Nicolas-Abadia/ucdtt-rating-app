@@ -1,6 +1,7 @@
 {% extends "players/base_html.html" %}
 {% block content %}
   <h1>All Players Rating</h1>
+  <a href="{% url "players:new" %}">Add new Player</a>
   <h2>Leadboard</h2>
   <ul>
     {% for player in player_list %}
@@ -8,4 +9,3 @@
     {% endfor %}
   </ul>
 {% endblock content %}
-

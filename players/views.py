@@ -1,5 +1,6 @@
 from django.views import generic
 from .models import Player
+from django.urls import reverse_lazy
 
 # Create your views here.
 
@@ -18,3 +19,8 @@ class PlayerDetailView(generic.DetailView):
     model = Player
     template_name = "players/detail.html"
     context_object_name = "player"
+
+class AddPlayerView(generic.CreateView):
+    model = Player
+    fields = ["name", "rating"]
+    success_url = reverse_lazy("players:index")

@@ -7,4 +7,5 @@ app_name = "players"
 urlpatterns = [
     path("", views.PlayerIndexView.as_view(), name="index"),
     path("<int:pk>/", views.PlayerDetailView.as_view(), name="detail"),
+    path("new_player/", views.AddPlayerView.as_view(), name="new"),
 ]

@@ -1,0 +1,11 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+  <h1>All Players Rating</h1>
+  <h2>Leadboard</h2>
+  <ul>
+    {% for player in player_list %}
+      <li>{{ player.rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock content %}
+

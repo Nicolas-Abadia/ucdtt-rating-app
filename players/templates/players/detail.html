@@ -1,0 +1,6 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+  <h1>{{ player.name }}</h1>
+  <p>Rating: {{ player.rating }}</p>
+  <p>Registered on: {{ player.created_date }}</p>
+{% endblock content %}

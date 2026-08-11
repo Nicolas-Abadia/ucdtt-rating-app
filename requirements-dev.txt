@@ -1,0 +1,10 @@
+-r requirements.txt
+click==8.4.2
+cssbeautifier==2.0.3
+djlint==1.44.2
+EditorConfig==0.17.1
+jsbeautifier==2.0.3
+json5==0.15.0
+pathspec==1.1.1
+PyYAML==6.0.3
+regex==2026.7.19

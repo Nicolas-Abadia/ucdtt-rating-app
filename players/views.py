@@ -16,11 +16,17 @@ class PlayerIndexView(generic.ListView):
 
 
 class PlayerDetailView(generic.DetailView):
+    """
+        Shows the detailed information of a player.
+    """
     model = Player
     template_name = "players/detail.html"
     context_object_name = "player"
 
 class AddPlayerView(generic.CreateView):
+    """
+        Adds a player to the database
+    """
     model = Player
     fields = ["name", "rating"]
     success_url = reverse_lazy("players:index")

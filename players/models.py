@@ -11,3 +11,13 @@ class Player(models.Model):
 
     def __str__(self):
         return self.name
+
+class Match(models.Model):
+    player1 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p1")
+    player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
+    score1 = models.IntegerField()
+    score2 = models.IntegerField()
+    date = models.DateTimeField("date")
+
+    def __str__(self):
+        return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"

@@ -4,5 +4,8 @@
   <p>Rating: {{ player.rating }}</p>
   <p>Registered on: {{ player.created_date }}</p>
   <p><a href="{% url "players:update" player.id %}">edit</a></p>
-  <p><a href="{% url "players:delete" player.id %}">delete</a></p>
+  <form action="{% url "players:delete" player.id %}" method="post" onsubmit="return confirm('Delete {{ player.name }}? This cannot be undone.');">
+    {% csrf_token %}
+    <button type="submit">delete</button>
+  </form>
 {% endblock content %}

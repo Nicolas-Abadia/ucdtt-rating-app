@@ -1,7 +1,8 @@
 {% extends "players/base_html.html" %}
 {% block content %}
-  <h1>All Players Rating</h1>
-  <a href="{% url "players:new" %}">Add new Player</a>
+  <h1>UCDTT Club Rating App</h1>
+  <p><a href="{% url "players:matches" %}">Matches Record</a></p>
+  <p><a href="{% url "players:new" %}">Add new Player</a></p>
   <h2>Leadboard</h2>
   <ul>
     {% for player in player_list %}

@@ -1,5 +1,5 @@
 from django.views import generic
-from .models import Player
+from .models import Player, Match
 from django.urls import reverse_lazy
 
 # Create your views here.
@@ -45,3 +45,21 @@ class DeletePlayerView(generic.DeleteView):
     """
     model = Player
     success_url = reverse_lazy("players:index")
+
+class MatchListView(generic.ListView):
+    """
+        Return list of all matches in record
+    """
+    model = Match
+    ordering = "-date"
+    template_name = "players/match_list.html"
+    context_object_name = "match_list"
+
+class LogMatchView(generic.CreateView):
+    """
+        Add new match
+    """
+    model = Match
+    fields = ["player1", "player2", "score1", "score2", "date"]
+    template_name = "players/match_form.html"
+    success_url = reverse_lazy("players:matches")

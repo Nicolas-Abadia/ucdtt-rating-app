@@ -8,4 +8,6 @@ urlpatterns = [
     path("", views.PlayerIndexView.as_view(), name="index"),
     path("<int:pk>/", views.PlayerDetailView.as_view(), name="detail"),
     path("new_player/", views.AddPlayerView.as_view(), name="new"),
+    path("<int:pk>/delete_player/", views.DeletePlayerView.as_view(), name="delete"),
+    path("<int:pk>/update_player/", views.EditPlayerView.as_view(), name="update"),
 ]

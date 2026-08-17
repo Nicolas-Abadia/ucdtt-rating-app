@@ -3,4 +3,6 @@
   <h1>{{ player.name }}</h1>
   <p>Rating: {{ player.rating }}</p>
   <p>Registered on: {{ player.created_date }}</p>
+  <p><a href="{% url "players:update" player.id %}">edit</a></p>
+  <p><a href="{% url "players:delete" player.id %}">delete</a></p>
 {% endblock content %}

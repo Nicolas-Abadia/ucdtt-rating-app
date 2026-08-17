@@ -30,3 +30,18 @@ class AddPlayerView(generic.CreateView):
     model = Player
     fields = ["name", "rating"]
     success_url = reverse_lazy("players:index")
+
+class EditPlayerView(generic.UpdateView):
+    """
+        Edit one existing player in the database
+    """
+    model = Player
+    fields = ["name", "rating"]
+    success_url = reverse_lazy("players:index")
+
+class DeletePlayerView(generic.DeleteView):
+    """
+        Delete one existing player in the database
+    """
+    model = Player
+    success_url = reverse_lazy("players:index")

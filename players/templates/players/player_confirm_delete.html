@@ -1,0 +1,13 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+<h2>Delete Player</h2>
+
+<p>Are you sure you want to delete "{{ object.name }}"? This can't be undone.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Delete</button>
+</form>
+<a href="{% url 'players:detail' object.pk %}">Cancel</a>
+{% endblock content %}
+

@@ -3,6 +3,8 @@ import datetime
 from django.utils import formats, timezone
 from .models import Player, Match
 from django.urls import reverse
+from django.core.management import call_command
+from io import StringIO
 
 # Create your tests here.
 
@@ -103,20 +105,20 @@ class EditPlayerViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         player.refresh_from_db()
         self.assertEqual(player.name, "Player A")
-    
-    class DeletePlayerViewTests(TestCase):
-        def test_delete_confirmation(self):
-            player = Player.objects.create(name="Player A", rating=1200)
-            response = self.client.get(reverse("players:delete", args=(player.id,)))
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Player A")
-        def test_delete_player(self):
-            player = Player.objects.create(name="Player A", rating=1200)
-            response = self.client.post(
-                reverse("players:delete", args=(player.id,)),
-            )
-            self.assertRedirects(response, reverse("players:index"))
-            self.assertEqual(Player.objects.count(), 0)
+
+class DeletePlayerViewTests(TestCase):
+    def test_delete_confirmation(self):
+        player = Player.objects.create(name="Player A", rating=1200)
+        response = self.client.get(reverse("players:delete", args=(player.id,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Player A")
+    def test_delete_player(self):
+        player = Player.objects.create(name="Player A", rating=1200)
+        response = self.client.post(
+            reverse("players:delete", args=(player.id,)),
+        )
+        self.assertRedirects(response, reverse("players:index"))
+        self.assertEqual(Player.objects.count(), 0)
 
 
 class MatchListViewTests(TestCase):
@@ -171,3 +173,66 @@ class LogMatchViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Match.objects.count(), 0)
+
+
+class RatingUpdateTests(TestCase):
+    def test_log_match_updates_player_ratings(self):
+        p1 = Player.objects.create(name="Player A", rating=1200)
+        p2 = Player.objects.create(name="Player B", rating=1200)
+        self.client.post(
+            reverse("players:new_match"),
+            {
+                "player1": p1.id,
+                "player2": p2.id,
+                "score1": 11,
+                "score2": 9,
+                "date": "2026-08-16",
+            },
+        )
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.rating, 1216)
+        self.assertEqual(p2.rating, 1184)
+        self.assertEqual(p1.initial_rating, 1200)
+        self.assertEqual(p2.initial_rating, 1200)
+
+
+class AddPlayerInitialRatingTests(TestCase):
+    def test_add_player_sets_initial_rating(self):
+        self.client.post(
+            reverse("players:new"),
+            {"name": "Player A", "rating": 1300},
+        )
+        player = Player.objects.first()
+        self.assertEqual(player.rating, 1300)
+        self.assertEqual(player.initial_rating, 1300)
+
+
+class RecomputeRatingsCommandTests(TestCase):
+    def test_recompute_restores_ratings_from_history(self):
+        p1 = Player.objects.create(name="Player A", rating=1200)
+        p2 = Player.objects.create(name="Player B", rating=1200)
+        self.client.post(
+            reverse("players:new_match"),
+            {
+                "player1": p1.id,
+                "player2": p2.id,
+                "score1": 11,
+                "score2": 9,
+                "date": "2026-08-16",
+            },
+        )
+        # Mess up ratings manually
+        p1.rating = 999
+        p2.rating = 1000
+        p1.save()
+        p2.save()
+
+        out = StringIO()
+        call_command("recompute_ratings", stdout=out)
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.rating, 1216)
+        self.assertEqual(p2.rating, 1184)
+        self.assertIn("Recomputed ratings for 1 match(es)", out.getvalue())

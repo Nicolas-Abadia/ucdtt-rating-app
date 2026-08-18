@@ -4,9 +4,9 @@
   <p><a href="{% url "players:matches" %}">Matches Record</a></p>
   <p><a href="{% url "players:new" %}">Add new Player</a></p>
   <h2>Leadboard</h2>
-  <ul>
+  <ol>
     {% for player in player_list %}
       <li>{{ player.rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>
     {% endfor %}
-  </ul>
+  </ol>
 {% endblock content %}

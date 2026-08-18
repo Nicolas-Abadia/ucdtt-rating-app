@@ -32,6 +32,24 @@ class Match(models.Model):
             ),
         ]
 
+    def save(self, *args, **kwargs):
+        """
+        On creation, updates both players' ratings via
+        ratings.services.update_ratings_from_match. This runs for any
+        Match creation (LogMatchView, the admin, the shell, a future API,
+        etc), not just one call site.
+
+        Bulk operations (bulk_create/queryset.update) bypass
+        save() and are intentionally not covered here. Follow a bulk
+        match import with the `recompute_ratings` management command
+        instead of relying on per-row updates.
+        """
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new:
+            from ratings.services import update_ratings_from_match
+            update_ratings_from_match(self)
+
     def __str__(self):
         return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"
 

@@ -3,7 +3,6 @@ from django.views import generic
 from django.urls import reverse_lazy
 from .models import Player, Match
 from .forms import MatchForm, OfficerSignUpForm
-from ratings.services import update_ratings_from_match
 
 # Create your views here.
 
@@ -76,14 +75,11 @@ class MatchListView(generic.ListView):
 
 class LogMatchView(LoginRequiredMixin, generic.CreateView):
     """
-        Add new match
+        Add new match. Rating updates happen in Match.save() (see
+        players/models.py), so they apply for any Match creation (this
+        view, the admin, the shell, etc), not just this view.
     """
     model = Match
     form_class = MatchForm
     template_name = "players/match_form.html"
     success_url = reverse_lazy("players:matches")
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        update_ratings_from_match(self.object)
-        return response

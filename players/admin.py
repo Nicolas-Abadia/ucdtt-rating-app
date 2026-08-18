@@ -1,8 +1,16 @@
 from django.contrib import admin
 
-from .models import Player, Match
+from .models import Player, Match, RatingHistory
 
 # Register your models here.
+
+class RatingHistoryInline(admin.TabularInline):
+    model = RatingHistory
+    readonly_fields = ("rating", "match", "player", "timestamp")
+    extra = 0  
+    can_delete = False 
+    def has_add_permission(self, request, obj=None):
+        return False
 
 class PlayerAdmin(admin.ModelAdmin):
     fieldsets = [
@@ -11,6 +19,8 @@ class PlayerAdmin(admin.ModelAdmin):
         ("Created Time", {"fields": ["created_date"]}),
     ]
     readonly_fields = ["created_date"]
+    ordering = ('-rating',)
+    inlines = [RatingHistoryInline]
     list_display = ["name", "rating", "initial_rating", "created_date"]
     list_filter = ["rating", "created_date"]
     search_fields = ["name"]

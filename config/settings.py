@@ -29,7 +29,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -121,3 +125,25 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Auth
+# https://docs.djangoproject.com/en/6.0/topics/auth/default/
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "players:index"
+LOGOUT_REDIRECT_URL = "players:index"
+
+# Production security hardening.
+# These are conditional on DEBUG so local development over plain HTTP is
+# unaffected. They take effect automatically once DJANGO_DEBUG=False, which
+# is how the app will run once deployed (e.g. on Render).
+# https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Start conservative (1 hour) and raise once HTTPS is confirmed working
+    # end-to-end behind the deployment platform's proxy/load balancer.
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

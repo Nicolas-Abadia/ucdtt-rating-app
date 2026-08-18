@@ -1,5 +1,6 @@
 from django.test import TestCase
 import datetime
+from django.contrib.auth.models import User
 from django.utils import formats, timezone
 from .models import Player, Match
 from django.urls import reverse
@@ -58,6 +59,10 @@ class PlayerDetailViewTests(TestCase):
         self.assertContains(response, formats.date_format(localized_date, "DATETIME_FORMAT"))
 
 class AddPlayerViewTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_form_loads(self):
         response = self.client.get(reverse("players:new"))
         self.assertEqual(response.status_code, 200)
@@ -81,6 +86,10 @@ class AddPlayerViewTests(TestCase):
 
 
 class EditPlayerViewTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_form_load(self):
         player = Player.objects.create(name="PlayerA", rating=1200)
         response = self.client.get(reverse("players:update", args=(player.id,)))
@@ -107,6 +116,10 @@ class EditPlayerViewTests(TestCase):
         self.assertEqual(player.name, "Player A")
 
 class DeletePlayerViewTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_delete_confirmation(self):
         player = Player.objects.create(name="Player A", rating=1200)
         response = self.client.get(reverse("players:delete", args=(player.id,)))
@@ -141,6 +154,10 @@ class MatchListViewTests(TestCase):
 
 
 class LogMatchViewTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_form_loads(self):
         response = self.client.get(reverse("players:new_match"))
         self.assertEqual(response.status_code, 200)
@@ -176,6 +193,10 @@ class LogMatchViewTests(TestCase):
 
 
 class RatingUpdateTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_log_match_updates_player_ratings(self):
         p1 = Player.objects.create(name="Player A", rating=1200)
         p2 = Player.objects.create(name="Player B", rating=1200)
@@ -198,6 +219,10 @@ class RatingUpdateTests(TestCase):
 
 
 class AddPlayerInitialRatingTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_add_player_sets_initial_rating(self):
         self.client.post(
             reverse("players:new"),
@@ -209,6 +234,10 @@ class AddPlayerInitialRatingTests(TestCase):
 
 
 class RecomputeRatingsCommandTests(TestCase):
+    def setUp(self):
+        self.officer = User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
     def test_recompute_restores_ratings_from_history(self):
         p1 = Player.objects.create(name="Player A", rating=1200)
         p2 = Player.objects.create(name="Player B", rating=1200)

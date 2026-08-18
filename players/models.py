@@ -16,9 +16,21 @@ class Player(models.Model):
 class Match(models.Model):
     player1 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p1")
     player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
-    score1 = models.IntegerField()
-    score2 = models.IntegerField()
+    score1 = models.IntegerField(validators=[MinValueValidator(0)])
+    score2 = models.IntegerField(validators=[MinValueValidator(0)])
     date = models.DateTimeField("date")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(score1__gte=0) & models.Q(score2__gte=0),
+                name="match_scores_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(player1=models.F("player2")),
+                name="match_players_distinct",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"

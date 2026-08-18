@@ -1,0 +1,9 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+<h2>New Officer Account</h2>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Create account</button>
+</form>
+{% endblock content %}

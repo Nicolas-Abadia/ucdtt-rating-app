@@ -1,6 +1,8 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import generic
-from .models import Player, Match
 from django.urls import reverse_lazy
+from .models import Player, Match
+from .forms import MatchForm, OfficerSignUpForm
 from ratings.services import update_ratings_from_match
 
 # Create your views here.
@@ -24,7 +26,17 @@ class PlayerDetailView(generic.DetailView):
     template_name = "players/detail.html"
     context_object_name = "player"
 
-class AddPlayerView(generic.CreateView):
+class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
+    """
+        Create a new officer account. Requires an existing officer to be
+        logged in, since v1 has officer-only accounts and no public
+        self-registration.
+    """
+    form_class = OfficerSignUpForm
+    template_name = "players/signup.html"
+    success_url = reverse_lazy("players:index")
+
+class AddPlayerView(LoginRequiredMixin, generic.CreateView):
     """
         Adds a player to the database
     """
@@ -38,7 +50,7 @@ class AddPlayerView(generic.CreateView):
         self.object.save()
         return response
 
-class EditPlayerView(generic.UpdateView):
+class EditPlayerView(LoginRequiredMixin, generic.UpdateView):
     """
         Edit one existing player in the database
     """
@@ -46,7 +58,7 @@ class EditPlayerView(generic.UpdateView):
     fields = ["name", "rating"]
     success_url = reverse_lazy("players:index")
 
-class DeletePlayerView(generic.DeleteView):
+class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
     """
         Delete one existing player in the database
     """
@@ -62,12 +74,12 @@ class MatchListView(generic.ListView):
     template_name = "players/match_list.html"
     context_object_name = "match_list"
 
-class LogMatchView(generic.CreateView):
+class LogMatchView(LoginRequiredMixin, generic.CreateView):
     """
         Add new match
     """
     model = Match
-    fields = ["player1", "player2", "score1", "score2", "date"]
+    form_class = MatchForm
     template_name = "players/match_form.html"
     success_url = reverse_lazy("players:matches")
 

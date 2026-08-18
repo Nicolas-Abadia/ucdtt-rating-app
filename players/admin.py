@@ -7,11 +7,11 @@ from .models import Player, Match
 class PlayerAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {"fields": ["name"]}),
-        ("Rating", {"fields": ["rating"]}),
+        ("Rating", {"fields": ["rating", "initial_rating"]}),
         ("Created Time", {"fields": ["created_date"]}),
     ]
     readonly_fields = ["created_date"]
-    list_display = ["name", "rating", "created_date"]
+    list_display = ["name", "rating", "initial_rating", "created_date"]
     list_filter = ["rating", "created_date"]
     search_fields = ["name"]
 

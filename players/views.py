@@ -1,6 +1,7 @@
 from django.views import generic
 from .models import Player, Match
 from django.urls import reverse_lazy
+from ratings.services import update_ratings_from_match
 
 # Create your views here.
 
@@ -30,6 +31,12 @@ class AddPlayerView(generic.CreateView):
     model = Player
     fields = ["name", "rating"]
     success_url = reverse_lazy("players:index")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.object.initial_rating = self.object.rating
+        self.object.save()
+        return response
 
 class EditPlayerView(generic.UpdateView):
     """
@@ -63,3 +70,8 @@ class LogMatchView(generic.CreateView):
     fields = ["player1", "player2", "score1", "score2", "date"]
     template_name = "players/match_form.html"
     success_url = reverse_lazy("players:matches")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        update_ratings_from_match(self.object)
+        return response

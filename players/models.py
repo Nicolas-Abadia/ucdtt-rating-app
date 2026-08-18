@@ -18,7 +18,7 @@ class Match(models.Model):
     player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
     score1 = models.IntegerField(validators=[MinValueValidator(0)])
     score2 = models.IntegerField(validators=[MinValueValidator(0)])
-    date = models.DateTimeField("date")
+    date = models.DateTimeField("date", db_index=True)
 
     class Meta:
         constraints = [
@@ -39,6 +39,13 @@ class Match(models.Model):
         Match creation (LogMatchView, the admin, the shell, a future API,
         etc), not just one call site.
 
+        If the new match is dated earlier than an already-existing match
+        (a backdated/out-of-order match), a single incremental update
+        would apply today's ratings instead of the ratings that existed
+        as of that date. In that case a full recompute runs instead,
+        replaying every match in chronological order via
+        ratings.services.recompute_all_ratings.
+
         Bulk operations (bulk_create/queryset.update) bypass
         save() and are intentionally not covered here. Follow a bulk
         match import with the `recompute_ratings` management command
@@ -47,8 +54,17 @@ class Match(models.Model):
         is_new = self._state.adding
         super().save(*args, **kwargs)
         if is_new:
-            from ratings.services import update_ratings_from_match
-            update_ratings_from_match(self)
+            from ratings.services import (
+                recompute_all_ratings,
+                update_ratings_from_match,
+            )
+            is_out_of_order = (
+                Match.objects.filter(date__gt=self.date).exclude(pk=self.pk).exists()
+            )
+            if is_out_of_order:
+                recompute_all_ratings()
+            else:
+                update_ratings_from_match(self)
 
     def __str__(self):
         return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"

@@ -4,6 +4,13 @@
   <form method="post">
     {% csrf_token %}
     {{ form.as_p }}
+    {# Server-rendered "now" in the site's timezone (settings.TIME_ZONE), not the
+       browser's clock. The form interprets the submitted value in that same
+       timezone, so using the browser's clock would be off by the visitor's UTC
+       offset and could trip the "no future dates" validation. #}
+    <button type="button"
+            data-now="{% now 'Y-m-d\TH:i' %}"
+            onclick="document.getElementById('id_date').value = this.dataset.now">Use current date/time</button>
     <button type="submit">Add</button>
   </form>
 {% endblock content %}

@@ -2,7 +2,9 @@
 {% block content %}
   <h1>UCDTT Club Rating App</h1>
   <p><a href="{% url "players:matches" %}">Matches Record</a></p>
+  {% if user.is_authenticated %}
   <p><a href="{% url "players:new" %}">Add new Player</a></p>
+  {% endif %}
   <h2>Leadboard</h2>
   <ol>
     {% for player in player_list %}

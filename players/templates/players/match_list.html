@@ -1,7 +1,9 @@
 {% extends "players/base_html.html" %}
 {% block content %}
   <h1>Matches Record</h1>
+  {% if user.is_authenticated %}
   <a href="{% url "players:new_match" %}">Add new match</a>
+  {% endif %}
   <ul>
     {% for match in match_list %}
       <li>{{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}</li>

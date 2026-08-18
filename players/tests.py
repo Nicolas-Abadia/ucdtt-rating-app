@@ -2,7 +2,7 @@ from django.test import TestCase
 import datetime
 from django.contrib.auth.models import User
 from django.utils import formats, timezone
-from .models import Player, Match
+from .models import Player, Match, RatingHistory
 from django.urls import reverse
 from django.core.management import call_command
 from io import StringIO
@@ -265,3 +265,82 @@ class RecomputeRatingsCommandTests(TestCase):
         self.assertEqual(p1.rating, 1216)
         self.assertEqual(p2.rating, 1184)
         self.assertIn("Recomputed ratings for 1 match(es)", out.getvalue())
+
+
+class OutOfOrderMatchTests(TestCase):
+    def test_backdated_match_triggers_full_recompute(self):
+        """
+        Creating a match dated before an already-existing match must not
+        apply that match's rating change on top of today's (already
+        updated) ratings. It should instead trigger a full recompute so
+        every match is replayed in chronological order.
+        """
+        p1 = Player.objects.create(name="Player A", rating=1200)
+        p2 = Player.objects.create(name="Player B", rating=1200)
+
+        # Log the later match first (normal, in-order creation).
+        Match.objects.create(
+            player1=p1,
+            player2=p2,
+            score1=11,
+            score2=9,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 16, 0, 0, 0)),
+        )
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.rating, 1216)
+        self.assertEqual(p2.rating, 1184)
+
+        # Now backdate a second match to before the first one.
+        Match.objects.create(
+            player1=p1,
+            player2=p2,
+            score1=9,
+            score2=11,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 10, 0, 0, 0)),
+        )
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+
+        # Correct chronological replay: the 08-10 match (p1 loses) is
+        # applied first from the initial 1200/1200 ratings, then the
+        # 08-16 match (p1 wins) is applied on top of that result. A naive
+        # incremental update (the bug) would instead apply the 08-10
+        # match's result on top of the already-updated 1216/1184 ratings,
+        # giving the wrong numbers (1198/1202).
+        self.assertEqual(p1.rating, 1201)
+        self.assertEqual(p2.rating, 1199)
+
+        # Recompute clears and rebuilds history from scratch: 2 matches,
+        # 2 rating rows each.
+        self.assertEqual(RatingHistory.objects.count(), 4)
+
+    def test_matches_created_in_order_are_not_recomputed(self):
+        """
+        Sanity check: creating matches in chronological order should not
+        be treated as out-of-order, and should keep working as a plain
+        incremental update.
+        """
+        p1 = Player.objects.create(name="Player A", rating=1200)
+        p2 = Player.objects.create(name="Player B", rating=1200)
+
+        Match.objects.create(
+            player1=p1,
+            player2=p2,
+            score1=11,
+            score2=9,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 10, 0, 0, 0)),
+        )
+        Match.objects.create(
+            player1=p1,
+            player2=p2,
+            score1=9,
+            score2=11,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 16, 0, 0, 0)),
+        )
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.rating, 1199)
+        self.assertEqual(p2.rating, 1201)
+        self.assertEqual(RatingHistory.objects.count(), 4)

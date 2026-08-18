@@ -12,6 +12,23 @@ class OfficerSignUpForm(UserCreationForm):
 
 
 class MatchForm(forms.ModelForm):
+    date = forms.DateTimeField(
+        widget=forms.DateTimeInput(
+            attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+        ),
+        # Accept the browser's datetime-local format (with "T") as well as
+        # Django's regular datetime formats, in case the field is ever
+        # posted to some other way (e.g. existing tests, the API later on).
+        input_formats=[
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d",
+        ],
+        label="Date and time",
+        help_text="Pick the date and time the match was played, or use the \u201cUse current date/time\u201d button below.",
+    )
+
     class Meta:
         model = Match
         fields = ["player1", "player2", "score1", "score2", "date"]

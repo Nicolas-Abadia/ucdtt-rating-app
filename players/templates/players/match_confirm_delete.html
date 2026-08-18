@@ -1,0 +1,18 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+<h2>Delete match</h2>
+
+<p>
+  Are you sure you want to delete
+  "{{ object.player1 }} vs {{ object.player2 }} {{ object.score1 }}-{{ object.score2 }}
+  on {{ object.date }}"? This can't be undone.
+</p>
+
+<p>Every player's rating will be recalculated from the remaining matches.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Delete</button>
+</form>
+<a href="{% url 'players:matches' %}">Cancel</a>
+{% endblock content %}

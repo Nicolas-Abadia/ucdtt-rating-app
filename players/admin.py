@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from ratings.services import recompute_all_ratings
+from .forms import MatchForm
 from .models import Player, Match, RatingHistory
 
 # Register your models here.
@@ -18,14 +20,29 @@ class PlayerAdmin(admin.ModelAdmin):
         ("Rating", {"fields": ["rating", "initial_rating"]}),
         ("Created Time", {"fields": ["created_date"]}),
     ]
-    readonly_fields = ["created_date"]
+    # rating is derived from the matches, so it is shown but not editable.
+    # initial_rating is the editable knob; see EditPlayerView for why.
+    readonly_fields = ["created_date", "rating"]
     ordering = ('-rating',)
     inlines = [RatingHistoryInline]
     list_display = ["name", "rating", "initial_rating", "created_date"]
     list_filter = ["rating", "created_date"]
     search_fields = ["name"]
 
+    def save_model(self, request, obj, form, change):
+        """
+        Changing initial_rating changes the starting point of the replay,
+        so ratings have to be rebuilt for it to mean anything.
+        """
+        super().save_model(request, obj, form, change)
+        if "initial_rating" in form.changed_data:
+            recompute_all_ratings()
+
 class MatchAdmin(admin.ModelAdmin):
+    # Reuse the same form as LogMatchView so admin edits get the no-tie and
+    # no-future-date rules too. Without this the admin only enforces what the
+    # database constraints cover: distinct players and non-negative scores.
+    form = MatchForm
     fieldsets = [
         (None, {"fields": ["player1", "player2"]}),
         ("Score", {"fields": ["score1", "score2"]}),
@@ -35,6 +52,15 @@ class MatchAdmin(admin.ModelAdmin):
     list_display_links = ["player1", "player2"]
     list_filter = ["date"]
     search_fields = ["player1__name", "player2__name"]
+
+    def delete_queryset(self, request, queryset):
+        """
+        The admin's bulk "delete selected" action calls queryset.delete(),
+        which bypasses Match.delete() and its rating recompute. Delete the
+        batch, then recompute once for the whole thing.
+        """
+        super().delete_queryset(request, queryset)
+        recompute_all_ratings()
 
 admin.site.register(Player, PlayerAdmin)
 admin.site.register(Match, MatchAdmin)

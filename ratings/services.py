@@ -3,7 +3,6 @@ from django.db import transaction
 from ratings.elo import rating_update
 from players.models import Player, Match, RatingHistory
 
-STARTING_RATING = 1200
 
 def score_from_match(player_score, opponent_score):
     if player_score > opponent_score:
@@ -13,27 +12,37 @@ def score_from_match(player_score, opponent_score):
     return 0.5
 
 def update_ratings_from_match(match):
-    # Read pre-match ratings
-    r1 = match.player1.rating
-    r2 = match.player2.rating
+    """
+    Applies one match's rating change incrementally, treating both players'
+    current ratings as the pre-match ratings.
 
-    score_a = score_from_match(match.score1, match.score2)
+    Wrapped in a transaction so the two player rows and the two history
+    rows either all land or none do. A partial write would leave one
+    player's rating updated and the opponent's stale, and nothing in the
+    stored data would show that it happened.
+    """
+    with transaction.atomic():
+        # Read pre-match ratings
+        r1 = match.player1.rating
+        r2 = match.player2.rating
 
-    new_r1, new_r2 = rating_update(r1, r2, score_a)
+        score_a = score_from_match(match.score1, match.score2)
 
-    # Update players
-    match.player1.rating = new_r1
-    match.player2.rating = new_r2
-    match.player1.save()
-    match.player2.save()
+        new_r1, new_r2 = rating_update(r1, r2, score_a)
 
-    # Log history (single round trip for both rows)
-    RatingHistory.objects.bulk_create(
-        [
-            RatingHistory(player=match.player1, match=match, rating=new_r1),
-            RatingHistory(player=match.player2, match=match, rating=new_r2),
-        ]
-    )
+        # Update players
+        match.player1.rating = new_r1
+        match.player2.rating = new_r2
+        match.player1.save()
+        match.player2.save()
+
+        # Log history (single round trip for both rows)
+        RatingHistory.objects.bulk_create(
+            [
+                RatingHistory(player=match.player1, match=match, rating=new_r1),
+                RatingHistory(player=match.player2, match=match, rating=new_r2),
+            ]
+        )
 
 
 def recompute_all_ratings():

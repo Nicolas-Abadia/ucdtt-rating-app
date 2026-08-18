@@ -6,7 +6,16 @@
   {% endif %}
   <ul>
     {% for match in match_list %}
-      <li>{{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}</li>
+      <li>
+        {{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}
+        {% if user.is_authenticated %}
+          <form action="{% url "players:delete_match" match.id %}" method="post" style="display:inline"
+                onsubmit="return confirm('Delete this match? Every rating will be recalculated from the remaining matches.');">
+            {% csrf_token %}
+            <button type="submit">delete</button>
+          </form>
+        {% endif %}
+      </li>
     {% endfor %}
   </ul>
 {% endblock content %}

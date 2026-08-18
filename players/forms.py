@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import Player, Match
+from .models import Match
 
 
 class OfficerSignUpForm(UserCreationForm):

@@ -1,16 +1,14 @@
 {% extends "players/base_html.html" %}
 {% block content %}
-  <h2>Add match</h2>
+  {# Shared by LogMatchView and EditMatchView. An unsaved instance has no pk. #}
+  <h2>{% if form.instance.pk %}Edit match{% else %}Add match{% endif %}</h2>
   <form method="post">
     {% csrf_token %}
     {{ form.as_p }}
-    {# Server-rendered "now" in the site's timezone (settings.TIME_ZONE), not the
-       browser's clock. The form interprets the submitted value in that same
-       timezone, so using the browser's clock would be off by the visitor's UTC
-       offset and could trip the "no future dates" validation. #}
+    {# Server-rendered "now" in the site's timezone (settings.TIME_ZONE), not the browser's clock. The form interprets the submitted value in that same timezone, so using the browser's clock would be off by the visitor's UTC offset and could trip the "no future dates" validation. #}
     <button type="button"
             data-now="{% now 'Y-m-d\TH:i' %}"
             onclick="document.getElementById('id_date').value = this.dataset.now">Use current date/time</button>
-    <button type="submit">Add</button>
+    <button type="submit">{% if form.instance.pk %}Save{% else %}Add{% endif %}</button>
   </form>
 {% endblock content %}

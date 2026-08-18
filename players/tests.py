@@ -69,7 +69,7 @@ class AddPlayerViewTests(TestCase):
     def test_create_player(self):
         response = self.client.post(
             reverse("players:new"),
-            {"name": "Player A", "rating": 1200},
+            {"name": "Player A", "initial_rating": 1200},
         )
         self.assertRedirects(response, reverse("players:index"))
         self.assertEqual(Player.objects.count(), 1)
@@ -79,7 +79,7 @@ class AddPlayerViewTests(TestCase):
     def test_invalid_renders_form(self):
         response = self.client.post(
             reverse("players:new"),
-            {"name": "", "rating": 1200},
+            {"name": "", "initial_rating": 1200},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Player.objects.count(), 0)
@@ -112,7 +112,7 @@ class EditPlayerViewTests(TestCase):
         player = Player.objects.create(name="Player A", rating=1200)
         response = self.client.post(
             reverse("players:update", args=(player.id,)),
-            {"name": "", "rating": 1300},
+            {"name": "", "initial_rating": 1300},
         )
         self.assertEqual(response.status_code, 200)
         player.refresh_from_db()
@@ -229,7 +229,7 @@ class AddPlayerInitialRatingTests(TestCase):
     def test_add_player_sets_initial_rating(self):
         self.client.post(
             reverse("players:new"),
-            {"name": "Player A", "rating": 1300},
+            {"name": "Player A", "initial_rating": 1300},
         )
         player = Player.objects.first()
         self.assertEqual(player.rating, 1300)
@@ -685,10 +685,169 @@ class DeleteMatchViewTests(TestCase):
         self.p1.refresh_from_db()
         self.assertEqual(self.p1.rating, 1216)
 
-    def test_match_list_shows_delete_only_to_officers(self):
-        response = self.client.get(reverse("players:matches"))
+    def test_detail_page_shows_delete_only_to_officers(self):
+        """
+        The control lives on the match detail page, not on every row of the
+        match list.
+        """
+        url = reverse("players:match_detail", args=(self.match.id,))
+        response = self.client.get(url)
         self.assertNotContains(response, ">delete</button>")
 
         self.login_as_officer()
-        response = self.client.get(reverse("players:matches"))
+        response = self.client.get(url)
         self.assertContains(response, ">delete</button>")
+
+
+class EditMatchViewTests(TestCase):
+    """
+    Correcting a mis-entered score is the most likely fix an officer needs.
+    The rating replay itself is covered by MatchEditAndDeleteRatingTests;
+    these cover the view, its validation, and its access control.
+    """
+
+    def setUp(self):
+        self.p1 = Player.objects.create(name="Player A", rating=1200, initial_rating=1200)
+        self.p2 = Player.objects.create(name="Player B", rating=1200, initial_rating=1200)
+        self.match = Match.objects.create(
+            player1=self.p1,
+            player2=self.p2,
+            score1=11,
+            score2=9,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 16, 0, 0, 0)),
+        )
+
+    def login_as_officer(self):
+        User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
+    def edit_url(self):
+        return reverse("players:update_match", args=(self.match.id,))
+
+    def test_form_loads_with_the_existing_match(self):
+        self.login_as_officer()
+        response = self.client.get(self.edit_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit match")
+        # The date must come back in the datetime-local format the widget
+        # expects, or the field renders blank and the officer has to retype
+        # a date they never meant to change.
+        self.assertContains(response, "2026-08-16T00:00")
+
+    def test_correcting_a_reversed_score_fixes_the_ratings(self):
+        self.login_as_officer()
+        response = self.client.post(
+            self.edit_url(),
+            {
+                "player1": self.p1.id,
+                "player2": self.p2.id,
+                "score1": 9,
+                "score2": 11,
+                "date": "2026-08-16",
+            },
+        )
+        self.assertRedirects(response, reverse("players:matches"))
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score1, 9)
+        self.assertEqual(self.match.score2, 11)
+
+        self.p1.refresh_from_db()
+        self.p2.refresh_from_db()
+        self.assertEqual(self.p1.rating, 1184)
+        self.assertEqual(self.p2.rating, 1216)
+        # Rebuilt, not appended to: still one match worth of history.
+        self.assertEqual(RatingHistory.objects.count(), 2)
+
+    def test_invalid_edit_is_rejected_and_changes_nothing(self):
+        """
+        An edit goes through the same MatchForm as a new match, so a tie is
+        refused here too instead of only at the database constraint.
+        """
+        self.login_as_officer()
+        response = self.client.post(
+            self.edit_url(),
+            {
+                "player1": self.p1.id,
+                "player2": self.p2.id,
+                "score1": 11,
+                "score2": 11,
+                "date": "2026-08-16",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score1, 11)
+        self.assertEqual(self.match.score2, 9)
+        self.p1.refresh_from_db()
+        self.assertEqual(self.p1.rating, 1216)
+
+    def test_visitors_cannot_edit_a_match(self):
+        response = self.client.post(
+            self.edit_url(),
+            {
+                "player1": self.p1.id,
+                "player2": self.p2.id,
+                "score1": 9,
+                "score2": 11,
+                "date": "2026-08-16",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score1, 11)
+        self.p1.refresh_from_db()
+        self.assertEqual(self.p1.rating, 1216)
+
+    def test_detail_page_shows_edit_only_to_officers(self):
+        url = reverse("players:match_detail", args=(self.match.id,))
+        response = self.client.get(url)
+        self.assertNotContains(response, ">edit</a>")
+
+        self.login_as_officer()
+        response = self.client.get(url)
+        self.assertContains(response, ">edit</a>")
+
+
+class MatchDetailViewTests(TestCase):
+    def setUp(self):
+        self.p1 = Player.objects.create(name="Player A", rating=1200, initial_rating=1200)
+        self.p2 = Player.objects.create(name="Player B", rating=1200, initial_rating=1200)
+        self.match = Match.objects.create(
+            player1=self.p1,
+            player2=self.p2,
+            score1=11,
+            score2=4,
+            date=timezone.make_aware(datetime.datetime(2026, 8, 16, 0, 0, 0)),
+        )
+
+    def test_detail_shows_the_match(self):
+        response = self.client.get(
+            reverse("players:match_detail", args=(self.match.id,))
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Player A")
+        self.assertContains(response, "Player B")
+        self.assertContains(response, "11-4")
+
+    def test_detail_links_to_both_players(self):
+        response = self.client.get(
+            reverse("players:match_detail", args=(self.match.id,))
+        )
+        self.assertContains(response, reverse("players:detail", args=(self.p1.id,)))
+        self.assertContains(response, reverse("players:detail", args=(self.p2.id,)))
+
+    def test_match_list_links_to_the_detail_page(self):
+        response = self.client.get(reverse("players:matches"))
+        self.assertContains(
+            response, reverse("players:match_detail", args=(self.match.id,))
+        )
+
+    def test_missing_match_is_a_404(self):
+        response = self.client.get(
+            reverse("players:match_detail", args=(self.match.id + 999,))
+        )
+        self.assertEqual(response.status_code, 404)

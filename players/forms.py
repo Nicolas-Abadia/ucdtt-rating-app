@@ -2,13 +2,32 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import Match
+from .models import Match, Player
 
 
 class OfficerSignUpForm(UserCreationForm):
     class Meta:
         model = User
         fields = ["username", "password1", "password2"]
+
+
+class PlayerForm(forms.ModelForm):
+    """
+    Shared by AddPlayerView and EditPlayerView so the two can't drift apart
+    and show different fields for the same thing.
+
+    Only initial_rating is exposed. rating is derived: every recompute
+    resets each player to initial_rating and replays the matches, so a
+    hand-set rating would be silently discarded (see EditPlayerView).
+    """
+
+    class Meta:
+        model = Player
+        fields = ["name", "initial_rating"]
+        labels = {"initial_rating": "Starting rating"}
+        help_texts = {
+            "initial_rating": "The rating this player starts from, before any matches are counted.",
+        }
 
 
 class MatchForm(forms.ModelForm):

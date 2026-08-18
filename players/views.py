@@ -6,7 +6,7 @@ from django.views import generic
 from django.urls import reverse_lazy
 from ratings.services import recompute_all_ratings
 from .models import Player, Match
-from .forms import MatchForm, OfficerSignUpForm
+from .forms import MatchForm, OfficerSignUpForm, PlayerForm
 
 # Create your views here.
 
@@ -41,17 +41,22 @@ class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
 
 class AddPlayerView(LoginRequiredMixin, generic.CreateView):
     """
-        Adds a player to the database
+        Adds a player to the database.
+
+        Officers set the starting rating (initial_rating); the current
+        rating is seeded from it here and is derived from the matches from
+        then on. Shares PlayerForm with EditPlayerView so both forms offer
+        the same field under the same label.
     """
     model = Player
-    fields = ["name", "rating"]
+    form_class = PlayerForm
     success_url = reverse_lazy("players:index")
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        self.object.initial_rating = self.object.rating
-        self.object.save()
-        return response
+        # Set before saving so this is one INSERT rather than an insert
+        # followed by an update.
+        form.instance.rating = form.instance.initial_rating
+        return super().form_valid(form)
 
 class EditPlayerView(LoginRequiredMixin, generic.UpdateView):
     """
@@ -68,7 +73,7 @@ class EditPlayerView(LoginRequiredMixin, generic.UpdateView):
         takes effect immediately rather than at some unrelated later one.
     """
     model = Player
-    fields = ["name", "initial_rating"]
+    form_class = PlayerForm
     success_url = reverse_lazy("players:index")
 
     def form_valid(self, form):
@@ -111,11 +116,38 @@ class MatchListView(generic.ListView):
     template_name = "players/match_list.html"
     context_object_name = "match_list"
 
+class MatchDetailView(generic.DetailView):
+    """
+        Shows one recorded match, and for officers the edit and delete
+        controls for it.
+
+        The controls live here rather than on every row of the match list so
+        that acting on a match takes a deliberate step, and so there is one
+        place to add match-level detail (the rating change it caused, notes)
+        later.
+    """
+    model = Match
+    template_name = "players/match_detail.html"
+    context_object_name = "match"
+
 class LogMatchView(LoginRequiredMixin, generic.CreateView):
     """
         Add new match. Rating updates happen in Match.save() (see
         players/models.py), so they apply for any Match creation (this
         view, the admin, the shell, etc), not just this view.
+    """
+    model = Match
+    form_class = MatchForm
+    template_name = "players/match_form.html"
+    success_url = reverse_lazy("players:matches")
+
+class EditMatchView(LoginRequiredMixin, generic.UpdateView):
+    """
+        Correct a recorded match. Uses the same MatchForm as logging a new
+        one, so a correction can't introduce a tie, duplicate players, or a
+        future date. Match.save() replays every rating from the corrected
+        record, so fixing a score or date also fixes the ratings of any
+        later match that was computed from it.
     """
     model = Match
     form_class = MatchForm

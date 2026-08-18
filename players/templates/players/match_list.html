@@ -6,15 +6,9 @@
   {% endif %}
   <ul>
     {% for match in match_list %}
+      {# Officer controls live on the match detail page, not on every row. #}
       <li>
-        {{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}
-        {% if user.is_authenticated %}
-          <form action="{% url "players:delete_match" match.id %}" method="post" style="display:inline"
-                onsubmit="return confirm('Delete this match? Every rating will be recalculated from the remaining matches.');">
-            {% csrf_token %}
-            <button type="submit">delete</button>
-          </form>
-        {% endif %}
+        <a href="{% url "players:match_detail" match.id %}">{{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}</a>
       </li>
     {% endfor %}
   </ul>

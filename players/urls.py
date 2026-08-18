@@ -12,6 +12,8 @@ urlpatterns = [
     path("<int:pk>/update_player/", views.EditPlayerView.as_view(), name="update"),
     path("matches/", views.MatchListView.as_view(), name="matches"),
     path("matches/new_match/", views.LogMatchView.as_view(), name="new_match"),
+    path("matches/<int:pk>/", views.MatchDetailView.as_view(), name="match_detail"),
+    path("matches/<int:pk>/update_match/", views.EditMatchView.as_view(), name="update_match"),
     path("matches/<int:pk>/delete_match/", views.DeleteMatchView.as_view(), name="delete_match"),
     path("signup/", views.OfficerSignUpView.as_view(), name="signup"),
 ]

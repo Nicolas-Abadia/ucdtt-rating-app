@@ -15,7 +15,7 @@
           <li><a href="{% url 'players:index' %}">Players</a></li>
           <li><a href="{% url 'players:matches' %}">Matches</a></li>
         </ul>
-        <details class="dropdown">
+        <details class="dropdown" style="margin: 0 !important;">
           {% if user.is_authenticated %}
             <summary>Logged in as {{ user.username }}</summary>
             <ul>

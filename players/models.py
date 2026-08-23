@@ -1,5 +1,7 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
+from django.utils import timezone
 
 # Create your models here.
 
@@ -29,8 +31,24 @@ class Match(models.Model):
             models.CheckConstraint(
                 condition=~models.Q(player1=models.F("player2")),
                 name="match_players_distinct",
+                violation_error_message="A player cannot play a match against themselves.",
             ),
         ]
+
+    def clean(self):
+        super().clean()
+
+        if self.score1 is not None and self.score1 < 0:
+            raise ValidationError({"score1": "Score cannot be negative."})
+
+        if self.score2 is not None and self.score2 < 0:
+            raise ValidationError({"score2": "Score cannot be negative."})
+
+        if self.score1 is not None and self.score2 is not None and self.score1 == self.score2:
+            raise ValidationError("One player must win.")
+
+        if self.date is not None and self.date > timezone.now():
+            raise ValidationError({"date": "Match date cannot be in the future."}) 
 
     def save(self, *args, **kwargs):
         """
@@ -39,7 +57,7 @@ class Match(models.Model):
         On creation, updates both players' ratings via
         ratings.services.update_ratings_from_match. This runs for any
         Match creation (LogMatchView, the admin, the shell, a future API,
-        etc), not just one call site.
+        etc).
 
         If the new match is dated earlier than an already-existing match
         (a backdated/out-of-order match), a single incremental update
@@ -70,6 +88,7 @@ class Match(models.Model):
 
         is_new = self._state.adding
         with transaction.atomic():
+            self.full_clean()
             super().save(*args, **kwargs)
             if not is_new:
                 recompute_all_ratings()

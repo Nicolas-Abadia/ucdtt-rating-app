@@ -1,9 +1,12 @@
 {% extends "players/base_html.html" %}
 {% block content %}
-  <h1>Matches Record</h1>
-  {% if user.is_authenticated %}
-  <a href="{% url "players:new_match" %}">Add new match</a>
-  {% endif %}
+  <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
+    <h1>Matches Record</h1>
+    {% if user.is_authenticated %}
+    <form action="{% url "players:new_match" %}"><button action="submit">Add new match</button></form>
+    {% endif %}
+  </div>
+  <hr>
   <ul>
     {% for match in match_list %}
       {# Officer controls live on the match detail page, not on every row. #}

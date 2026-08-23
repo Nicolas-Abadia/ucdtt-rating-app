@@ -2,6 +2,7 @@
 {% block content %}
   {# Shared by LogMatchView and EditMatchView. An unsaved instance has no pk. #}
   <h2>{% if form.instance.pk %}Edit match{% else %}Add match{% endif %}</h2>
+  <hr>
   <form method="post">
     {% csrf_token %}
     {{ form.as_p }}

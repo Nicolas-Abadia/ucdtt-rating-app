@@ -1,6 +1,7 @@
 {% extends "players/base_html.html" %}
 {% block content %}
 <h2>{% if object.pk %}Edit Player{% else %}Add New Player{% endif %}</h2>
+<hr>
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}

@@ -5,7 +5,10 @@ from django.utils import formats, timezone
 from .models import Player, Match, RatingHistory
 from django.urls import reverse
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from io import StringIO
+import os
+import tempfile
 
 # Create your tests here.
 
@@ -594,6 +597,11 @@ class OfficerOnlyVisibilityTests(TestCase):
     here is that they aren't advertised to visitors who can't use them, so
     the templates' {% if user.is_authenticated %} guards can't be dropped
     without a test noticing.
+
+    Each assertion targets the action's URL rather than its button label or
+    HTML tag. A label or tag can change for purely cosmetic reasons, which
+    makes the negative assertions pass even with the guard removed. The URL
+    is what actually leaks, so it is what gets asserted on.
     """
 
     def setUp(self):
@@ -603,34 +611,40 @@ class OfficerOnlyVisibilityTests(TestCase):
         User.objects.create_user(username="officer", password="testpass123")
         self.client.login(username="officer", password="testpass123")
 
+    def edit_url(self):
+        return reverse("players:update", args=(self.player.id,))
+
+    def delete_url(self):
+        return reverse("players:delete", args=(self.player.id,))
+
     def test_detail_hides_edit_and_delete_from_visitors(self):
         response = self.client.get(reverse("players:detail", args=(self.player.id,)))
-        self.assertNotContains(response, ">edit</a>")
-        self.assertNotContains(response, ">delete</button>")
+        self.assertNotContains(response, self.edit_url())
+        self.assertNotContains(response, self.delete_url())
 
     def test_detail_shows_edit_and_delete_to_officers(self):
         self.login_as_officer()
         response = self.client.get(reverse("players:detail", args=(self.player.id,)))
-        self.assertContains(response, ">edit</a>")
-        self.assertContains(response, ">delete</button>")
+        self.assertContains(response, self.edit_url())
+        self.assertContains(response, self.delete_url())
 
     def test_index_hides_add_player_from_visitors(self):
         response = self.client.get(reverse("players:index"))
-        self.assertNotContains(response, "Add new Player")
+        self.assertNotContains(response, reverse("players:new"))
 
     def test_index_shows_add_player_to_officers(self):
         self.login_as_officer()
         response = self.client.get(reverse("players:index"))
-        self.assertContains(response, "Add new Player")
+        self.assertContains(response, reverse("players:new"))
 
     def test_match_list_hides_add_match_from_visitors(self):
         response = self.client.get(reverse("players:matches"))
-        self.assertNotContains(response, "Add new match")
+        self.assertNotContains(response, reverse("players:new_match"))
 
     def test_match_list_shows_add_match_to_officers(self):
         self.login_as_officer()
         response = self.client.get(reverse("players:matches"))
-        self.assertContains(response, "Add new match")
+        self.assertContains(response, reverse("players:new_match"))
 
 
 class DeleteMatchViewTests(TestCase):
@@ -803,13 +817,15 @@ class EditMatchViewTests(TestCase):
         self.assertEqual(self.p1.rating, 1216)
 
     def test_detail_page_shows_edit_only_to_officers(self):
+        # Asserts on the edit URL rather than the button markup, so a
+        # restyled template can't make this pass with the guard removed.
         url = reverse("players:match_detail", args=(self.match.id,))
         response = self.client.get(url)
-        self.assertNotContains(response, ">edit</a>")
+        self.assertNotContains(response, self.edit_url())
 
         self.login_as_officer()
         response = self.client.get(url)
-        self.assertContains(response, ">edit</a>")
+        self.assertContains(response, self.edit_url())
 
 
 class MatchDetailViewTests(TestCase):
@@ -851,3 +867,97 @@ class MatchDetailViewTests(TestCase):
             reverse("players:match_detail", args=(self.match.id + 999,))
         )
         self.assertEqual(response.status_code, 404)
+
+
+class ImportPlayersCommandTests(TestCase):
+    def run_import(self, csv_text, *args):
+        """
+        Writes csv_text to a temp file, runs import_players on it, and returns
+        the command's stdout.
+        """
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".csv", delete=False, encoding="utf-8", newline=""
+        ) as fh:
+            fh.write(csv_text)
+            path = fh.name
+        out = StringIO()
+        try:
+            call_command("import_players", path, *args, stdout=out)
+        finally:
+            os.unlink(path)
+        return out.getvalue()
+
+    def test_imports_names_with_the_default_rating(self):
+        self.run_import("name\nAlice\nBob\n")
+        self.assertEqual(Player.objects.count(), 2)
+        alice = Player.objects.get(name="Alice")
+        self.assertEqual(alice.rating, 1200)
+        self.assertEqual(alice.initial_rating, 1200)
+
+    def test_seeded_rating_also_sets_initial_rating(self):
+        """
+        A seeded rating has to land in initial_rating as well. If it only lands
+        in rating, the next recompute_all_ratings() resets the player to 1200.
+        """
+        self.run_import("name,rating\nAlice,1450\n")
+        alice = Player.objects.get(name="Alice")
+        self.assertEqual(alice.rating, 1450)
+        self.assertEqual(alice.initial_rating, 1450)
+
+    def test_seeded_rating_survives_a_recompute(self):
+        """
+        The regression the initial_rating handling exists to prevent.
+        """
+        self.run_import("name,rating\nAlice,1450\nBob,1100\n")
+        call_command("recompute_ratings", stdout=StringIO())
+        self.assertEqual(Player.objects.get(name="Alice").rating, 1450)
+        self.assertEqual(Player.objects.get(name="Bob").rating, 1100)
+
+    def test_skips_a_name_already_in_the_database(self):
+        Player.objects.create(name="Alice")
+        output = self.run_import("name\nalice\nBob\n")
+        self.assertEqual(Player.objects.count(), 2)
+        self.assertIn("already in the database", output)
+
+    def test_skips_a_duplicate_within_the_file(self):
+        output = self.run_import("name\nAlice\nALICE\n")
+        self.assertEqual(Player.objects.count(), 1)
+        self.assertIn("duplicated within the file", output)
+
+    def test_skips_a_non_numeric_rating(self):
+        output = self.run_import("name,rating\nAlice,not-a-number\nBob,1300\n")
+        self.assertEqual(Player.objects.count(), 1)
+        self.assertIn("not a whole number", output)
+
+    def test_skips_a_rating_below_the_minimum(self):
+        output = self.run_import("name,rating\nAlice,50\n")
+        self.assertEqual(Player.objects.count(), 0)
+        self.assertIn("below the minimum", output)
+
+    def test_skips_a_blank_name(self):
+        output = self.run_import('name\n"   "\nBob\n')
+        self.assertEqual(Player.objects.count(), 1)
+        self.assertIn("blank name", output)
+
+    def test_dry_run_writes_nothing(self):
+        output = self.run_import("name\nAlice\nBob\n", "--dry-run")
+        self.assertEqual(Player.objects.count(), 0)
+        self.assertIn("Dry run", output)
+
+    def test_strips_the_spreadsheet_byte_order_mark(self):
+        self.run_import("\ufeffname\nAlice\n")
+        self.assertTrue(Player.objects.filter(name="Alice").exists())
+
+    def test_a_missing_name_column_is_an_error(self):
+        with self.assertRaises(CommandError):
+            self.run_import("player\nAlice\n")
+
+    def test_a_header_with_no_data_rows_is_an_error(self):
+        with self.assertRaises(CommandError):
+            self.run_import("name\n")
+
+    def test_a_missing_file_is_an_error(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "import_players", "/nonexistent/roster.csv", stdout=StringIO()
+            )

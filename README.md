@@ -138,16 +138,6 @@ source .venv/bin/activate
 DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_players roster.csv --dry-run
 ```
 
-The `VAR=value command` form scopes the variable to that one process. It is not exported to the shell, so the next command — `runserver`, `test`, anything else — goes back to the local database configured in `.env`. Do not use `export DATABASE_URL=...`, which would silently point the rest of the session at production.
-
-Reading the URL from a file with `$(cat ...)` instead of typing it also keeps the database password out of `~/.bash_history`.
-
-Three things worth knowing:
-
-- The production `DATABASE_URL` must never be placed in `.env`. `load_dotenv` does not override variables that are already set in the environment, which is what makes the inline form take precedence; but a production URL sitting in `.env` becomes the default for every command run in the project.
-- For a long single transaction such as a large import, use Neon's **direct** (non-pooled) connection string rather than the pooled one the web service uses.
-- Neon's database branching can be used to rehearse an import against a copy of production data before running it for real.
-
 ## Deployment
 
 Runs as a Render web service backed by a Neon Postgres database.

@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -83,7 +84,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": dj_database_url.config(
-        default="postgres://ucdtt:ucdtt@localhost:5432/ucdtt_rating"
+        default="postgres://ucdtt:ucdtt@localhost:5432/ucdtt_rating",
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
 
@@ -124,6 +127,22 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# collectstatic copies every app's static files (including the admin's CSS)
+# into this directory at build time. WhiteNoise then serves them from there.
+# Django itself refuses to serve static files when DEBUG is False.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        # Plain storage locally and in tests. The production backend is
+        # swapped in under "if not DEBUG" below.
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Auth
@@ -139,6 +158,18 @@ LOGOUT_REDIRECT_URL = "players:index"
 # is how the app will run once deployed (e.g. on Render).
 # https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 if not DEBUG:
+    # Render terminates TLS at its proxy and forwards plain HTTP internally.
+    # Without this, Django sees "http", SECURE_SSL_REDIRECT sends the browser
+    # to HTTPS, the proxy forwards HTTP again, and the request loops forever.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    CSRF_TRUSTED_ORIGINS = ["https://" + host for host in ALLOWED_HOSTS]
+    # Compresses static files and fingerprints each filename so browsers can
+    # cache them permanently. Production-only: this backend refuses to resolve
+    # a static template tag unless collectstatic has built the manifest first,
+    # which would break every test that renders an admin page.
+    STORAGES["staticfiles"]["BACKEND"] = (
+        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    )
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

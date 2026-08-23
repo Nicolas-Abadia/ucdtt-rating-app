@@ -2,7 +2,7 @@
 {% block content %}
   <h1>{{ player.name }}</h1>
   <hr>
-  <p>Rating: {{ player.rating }}</p>
+  <p>Rating: {{ player.display_rating }}</p>
   <p>Registered on: {{ player.created_date }}</p>
   {% if user.is_authenticated %}
   <div class="grid">

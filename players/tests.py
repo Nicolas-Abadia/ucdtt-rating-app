@@ -313,9 +313,15 @@ class OutOfOrderMatchTests(TestCase):
         # 08-16 match (p1 wins) is applied on top of that result. A naive
         # incremental update (the bug) would instead apply the 08-10
         # match's result on top of the already-updated 1216/1184 ratings,
-        # giving the wrong numbers (1198/1202).
-        self.assertEqual(p1.rating, 1201)
-        self.assertEqual(p2.rating, 1199)
+        # landing on 1198.53/1201.47, i.e. the two players the wrong way
+        # round.
+        #
+        # Ratings are stored as floats, so these are the exact replay
+        # values rather than the 1201/1199 they are displayed as.
+        self.assertAlmostEqual(p1.rating, 1201.4695, places=4)
+        self.assertAlmostEqual(p2.rating, 1198.5305, places=4)
+        self.assertEqual(p1.display_rating, 1201)
+        self.assertEqual(p2.display_rating, 1199)
 
         # Recompute clears and rebuilds history from scratch: 2 matches,
         # 2 rating rows each.
@@ -347,8 +353,8 @@ class OutOfOrderMatchTests(TestCase):
 
         p1.refresh_from_db()
         p2.refresh_from_db()
-        self.assertEqual(p1.rating, 1199)
-        self.assertEqual(p2.rating, 1201)
+        self.assertAlmostEqual(p1.rating, 1198.5305, places=4)
+        self.assertAlmostEqual(p2.rating, 1201.4695, places=4)
         self.assertEqual(RatingHistory.objects.count(), 4)
 
 
@@ -405,8 +411,8 @@ class MatchEditAndDeleteRatingTests(TestCase):
 
         self.p1.refresh_from_db()
         self.p2.refresh_from_db()
-        self.assertEqual(self.p1.rating, 1199)
-        self.assertEqual(self.p2.rating, 1201)
+        self.assertAlmostEqual(self.p1.rating, 1198.5305, places=4)
+        self.assertAlmostEqual(self.p2.rating, 1201.4695, places=4)
 
         # Move the second match to before the first one.
         later.date = timezone.make_aware(datetime.datetime(2026, 8, 5, 0, 0, 0))
@@ -414,8 +420,8 @@ class MatchEditAndDeleteRatingTests(TestCase):
 
         self.p1.refresh_from_db()
         self.p2.refresh_from_db()
-        self.assertEqual(self.p1.rating, 1201)
-        self.assertEqual(self.p2.rating, 1199)
+        self.assertAlmostEqual(self.p1.rating, 1201.4695, places=4)
+        self.assertAlmostEqual(self.p2.rating, 1198.5305, places=4)
         self.assertEqual(RatingHistory.objects.count(), 4)
 
     def test_deleting_only_match_restores_initial_ratings(self):
@@ -563,8 +569,9 @@ class EditPlayerInitialRatingTests(TestCase):
         # Player A still won that match, so they are above their new seed.
         self.assertGreater(p1.rating, 1300)
         # Elo moves points between the two players, so the pair still sums
-        # to the two starting ratings.
-        self.assertEqual(p1.rating + p2.rating, 1300 + 1200)
+        # to the two starting ratings. Compared with a tolerance because
+        # (a + delta) + (b - delta) is not exactly a + b in IEEE 754.
+        self.assertAlmostEqual(p1.rating + p2.rating, 1300 + 1200, places=6)
 
     def test_editing_only_the_name_leaves_ratings_alone(self):
         """
@@ -961,3 +968,51 @@ class ImportPlayersCommandTests(TestCase):
             call_command(
                 "import_players", "/nonexistent/roster.csv", stdout=StringIO()
             )
+
+
+class LargeRatingGapTests(TestCase):
+    """
+    While ratings were integers, a favourite more than ~720 points ahead
+    gained exactly 0 after rounding, so they could never move no matter how
+    many matches they won. Storing the float keeps the fraction, so the
+    displayed rating still climbs over a few wins.
+    """
+
+    def setUp(self):
+        self.strong = Player.objects.create(
+            name="Strong", rating=1920, initial_rating=1920
+        )
+        self.weak = Player.objects.create(
+            name="Weak", rating=1200, initial_rating=1200
+        )
+
+    def make_match(self, day):
+        return Match.objects.create(
+            player1=self.strong,
+            player2=self.weak,
+            score1=11,
+            score2=4,
+            date=timezone.make_aware(datetime.datetime(2026, 8, day, 0, 0, 0)),
+        )
+
+    def test_favorite_gains_from_beating_a_much_weaker_player(self):
+        self.make_match(10)
+        self.strong.refresh_from_db()
+        self.weak.refresh_from_db()
+
+        # A 720-point gap is right at the old rounding cliff: the gain is
+        # real but smaller than one whole point, so nothing visible moves
+        # yet.
+        self.assertGreater(self.strong.rating, 1920)
+        self.assertLess(self.weak.rating, 1200)
+        self.assertEqual(self.strong.display_rating, 1920)
+
+    def test_two_wins_move_the_displayed_rating(self):
+        self.make_match(10)
+        self.make_match(11)
+        self.strong.refresh_from_db()
+
+        # Two sub-point gains add up to more than half a point, so the
+        # rating members actually see finally changes. Under the old
+        # integer rounding this stayed at 1920 forever.
+        self.assertEqual(self.strong.display_rating, 1921)

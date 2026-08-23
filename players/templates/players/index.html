@@ -10,7 +10,7 @@
   <h2>Leaderboard</h2>
   <ol>
     {% for player in player_list %}
-      <li>{{ player.rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>
+      <li>{{ player.display_rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>
     {% endfor %}
   </ol>
 {% endblock content %}

@@ -25,9 +25,17 @@ class PlayerAdmin(admin.ModelAdmin):
     readonly_fields = ["created_date", "rating"]
     ordering = ('-rating',)
     inlines = [RatingHistoryInline]
-    list_display = ["name", "rating", "initial_rating", "created_date"]
-    list_filter = ["rating", "created_date"]
+    # The list shows the rounded rating; the detail view still shows the
+    # stored float, so the exact value the replay produced stays visible.
+    list_display = ["name", "rating_display", "initial_rating", "created_date"]
+    # rating is deliberately not a filter: it is a float, so the sidebar
+    # would render one entry per distinct rating in the database.
+    list_filter = ["created_date"]
     search_fields = ["name"]
+
+    @admin.display(description="Rating", ordering="rating")
+    def rating_display(self, obj):
+        return obj.display_rating
 
     def save_model(self, request, obj, form, change):
         """

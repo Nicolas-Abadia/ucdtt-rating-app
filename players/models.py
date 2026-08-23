@@ -9,7 +9,10 @@ from django.utils import timezone
 
 class Player(models.Model):
     name = models.CharField(max_length=200)
-    rating = models.IntegerField(default=1200, validators=[MinValueValidator(100)])
+    # Stored unrounded so sub-point changes accumulate; see
+    # ratings.elo.rating_update. initial_rating stays an integer because it
+    # is typed in by an officer rather than computed.
+    rating = models.FloatField(default=1200, validators=[MinValueValidator(100)])
     initial_rating = models.IntegerField(default=1200, validators=[MinValueValidator(100)])
     created_date = models.DateTimeField("created date", auto_now_add=True)
 
@@ -21,6 +24,14 @@ class Player(models.Model):
                 violation_error_message="A player with this name already exists.",
             )
         ]
+
+    @property
+    def display_rating(self):
+        """
+        The whole-number rating members see. Rounding happens here and
+        nowhere else, so the stored value stays exact.
+        """
+        return round(self.rating)
 
     def __str__(self):
         return self.name
@@ -142,7 +153,7 @@ class RatingHistory(models.Model):
     # Deleting a match now drops its history rows, and the recompute that
     # follows regenerates the full history.
     match = models.ForeignKey(Match, on_delete=models.CASCADE, null=True, blank=True, related_name="rating_changes")
-    rating = models.IntegerField()
+    rating = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

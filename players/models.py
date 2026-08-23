@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 # Create your models here.
@@ -11,6 +12,15 @@ class Player(models.Model):
     rating = models.IntegerField(default=1200, validators=[MinValueValidator(100)])
     initial_rating = models.IntegerField(default=1200, validators=[MinValueValidator(100)])
     created_date = models.DateTimeField("created date", auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"),
+                name="unique_player_name_ci",
+                violation_error_message="A player with this name already exists.",
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -38,20 +48,18 @@ class Match(models.Model):
                 name="match_players_distinct",
                 violation_error_message="A player cannot play a match against themselves.",
             ),
+            models.CheckConstraint(
+                condition=~models.Q(score1=models.F("score2")),
+                name="match_scores_not_tied",
+                violation_error_message="One player must win.",
+            ),
         ]
 
     def clean(self):
         super().clean()
-
-        if self.score1 is not None and self.score1 < 0:
-            raise ValidationError({"score1": "Score cannot be negative."})
-
-        if self.score2 is not None and self.score2 < 0:
-            raise ValidationError({"score2": "Score cannot be negative."})
-
-        if self.score1 is not None and self.score2 is not None and self.score1 == self.score2:
-            raise ValidationError("One player must win.")
-
+        # The future-date rule is the one that can't be a constraint, because
+        # it depends on now() and a CheckConstraint has to be a fixed
+        # expression over the row's own columns.
         if self.date is not None and self.date > timezone.now():
             raise ValidationError({"date": "Match date cannot be in the future."}) 
 

@@ -2,12 +2,11 @@
 {% block content %}
   <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
     <h1>UCDTT Club Rating App</h1>
-    <form action="{% url "players:new" %}"><button type="submit">Add new player</button></form>
+    {% if user.is_authenticated %}
+      <form action="{% url "players:new" %}"><button type="submit">Add new player</button></form>
+    {% endif %}
   </div>
   <hr>
-  {% if user.is_authenticated %}
-  
-  {% endif %}
   <h2>Leaderboard</h2>
   <ol>
     {% for player in player_list %}

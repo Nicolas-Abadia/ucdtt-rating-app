@@ -24,6 +24,11 @@ class Match(models.Model):
 
     class Meta:
         constraints = [
+            models.UniqueConstraint(
+                fields=['player1', 'player2', 'score1', 'score2', 'date'],
+                name='prevent_identical_match_duplicates',
+                violation_error_message="This identical match has already been logged."
+            ),
             models.CheckConstraint(
                 condition=models.Q(score1__gte=0) & models.Q(score2__gte=0),
                 name="match_scores_non_negative",

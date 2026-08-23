@@ -127,13 +127,9 @@ python manage.py import_players roster.csv             # write
 
 Always run `--dry-run` first. It prints the target database and every row it would skip.
 
-A seeded rating is written to both `rating` and `initial_rating`. This matters: `recompute_ratings` restarts the replay from `initial_rating`, so a rating stored only in `rating` would be silently reset to 1200 the first time any match is edited, deleted, or backdated.
-
-Rows are skipped rather than treated as fatal when the name is blank or longer than 200 characters, the rating is not a whole number or falls below 100, or the name duplicates an existing player or an earlier row in the same file. Name comparison is case-insensitive, matching the `unique_player_name_ci` database constraint. Everything that passes validation is inserted in a single transaction.
-
 ## Running management commands against production
 
-Neon accepts connections from anywhere, so production maintenance runs from a local checkout. A shell on the Render service is not required, and is a paid feature in any case.
+Neon accepts connections from anywhere, so production maintenance runs from a local checkout.
 
 Keep the production connection string in `.neon-prod-url`, which is gitignored, and pass it inline:
 

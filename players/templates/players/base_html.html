@@ -3,25 +3,29 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <meta name="description" content="UCDTT Rating App">
     <title>UCDTT Rating App</title>
   </head>
   <body>
-    <nav>
-      <a href="{% url 'players:index' %}">Players</a>
-      <a href="{% url 'players:matches' %}">Matches</a>
-      {% if user.is_authenticated %}
-        <span>Logged in as {{ user.username }}</span>
-        <a href="{% url 'players:signup' %}">New officer account</a>
-        <form method="post" action="{% url 'logout' %}" style="display:inline">
-          {% csrf_token %}
-          <button type="submit">Log out</button>
-        </form>
-      {% else %}
-        <a href="{% url 'login' %}">Officer login</a>
-      {% endif %}
-    </nav>
-    <main class="content">
+    <header>
+      <nav>
+        <a href="{% url 'players:index' %}">Players</a>
+        <a href="{% url 'players:matches' %}">Matches</a>
+        {% if user.is_authenticated %}
+          <span>Logged in as {{ user.username }}</span>
+          <a href="{% url 'players:signup' %}">New officer account</a>
+          <form method="post" action="{% url 'logout' %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit">Log out</button>
+          </form>
+        {% else %}
+          <a href="{% url 'login' %}">Officer login</a>
+        {% endif %}
+      </nav>
+    </header>
+    <main class="container">
       {% if messages %}
         <ul class="messages">
           {% for message in messages %}

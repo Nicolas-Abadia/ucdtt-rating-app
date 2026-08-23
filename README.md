@@ -17,6 +17,7 @@ UC Davis Table Tennis Club internal rating system.
 - Updates ratings after each match using an Elo-style system.
 - Supports full recomputation from match history when a result needs correction.
 - Automatically replays affected ratings when a match is backdated, edited, or deleted.
+- Imports player rosters in bulk from a CSV file.
 
 ## Tech stack
 
@@ -98,10 +99,58 @@ Parameters used in this app:
 
 ## Management commands
 
+### `recompute_ratings`
+
+Resets every player to their `initial_rating` and replays all matches in chronological order.
+
 ```bash
-# Recompute all ratings from match history
 python manage.py recompute_ratings
 ```
+
+This is not normally needed. `Match.save()` and `Match.delete()` already trigger a replay whenever a match is backdated, edited, or removed. Run it manually after any bulk write that bypasses `save()`, such as a `bulk_create` of matches or a `queryset.update()`.
+
+### `import_players`
+
+Bulk-creates players from a CSV. The `name` column is required; `rating` is optional and defaults to 1200.
+
+```csv
+name,rating
+Alice Chen,1450
+Bob Rivera,
+Carla Diaz,1180
+```
+
+```bash
+python manage.py import_players roster.csv --dry-run   # report only, writes nothing
+python manage.py import_players roster.csv             # write
+```
+
+Always run `--dry-run` first. It prints the target database and every row it would skip.
+
+A seeded rating is written to both `rating` and `initial_rating`. This matters: `recompute_ratings` restarts the replay from `initial_rating`, so a rating stored only in `rating` would be silently reset to 1200 the first time any match is edited, deleted, or backdated.
+
+Rows are skipped rather than treated as fatal when the name is blank or longer than 200 characters, the rating is not a whole number or falls below 100, or the name duplicates an existing player or an earlier row in the same file. Name comparison is case-insensitive, matching the `unique_player_name_ci` database constraint. Everything that passes validation is inserted in a single transaction.
+
+## Running management commands against production
+
+Neon accepts connections from anywhere, so production maintenance runs from a local checkout. A shell on the Render service is not required, and is a paid feature in any case.
+
+Keep the production connection string in `.neon-prod-url`, which is gitignored, and pass it inline:
+
+```bash
+source .venv/bin/activate
+DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_players roster.csv --dry-run
+```
+
+The `VAR=value command` form scopes the variable to that one process. It is not exported to the shell, so the next command — `runserver`, `test`, anything else — goes back to the local database configured in `.env`. Do not use `export DATABASE_URL=...`, which would silently point the rest of the session at production.
+
+Reading the URL from a file with `$(cat ...)` instead of typing it also keeps the database password out of `~/.bash_history`.
+
+Three things worth knowing:
+
+- The production `DATABASE_URL` must never be placed in `.env`. `load_dotenv` does not override variables that are already set in the environment, which is what makes the inline form take precedence; but a production URL sitting in `.env` becomes the default for every command run in the project.
+- For a long single transaction such as a large import, use Neon's **direct** (non-pooled) connection string rather than the pooled one the web service uses.
+- Neon's database branching can be used to rehearse an import against a copy of production data before running it for real.
 
 ## Deployment
 

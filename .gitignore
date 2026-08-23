@@ -62,6 +62,10 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 staticfiles/
+.neon-prod-url
+
+# Local-only data files (rosters and other import inputs)
+/roster*.csv
 
 # Flask stuff:
 instance/
@@ -152,6 +156,8 @@ activemq-data/
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/

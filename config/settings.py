@@ -52,6 +52,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # Activates the viewer's own timezone for the request. Must run before any
+    # view renders or parses a datetime.
+    'players.middleware.TimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -115,6 +118,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
+# Fallback only. TimezoneMiddleware activates the viewer's own zone whenever
+# the browser has reported one; this applies when it has not.
 TIME_ZONE = 'America/Los_Angeles'
 
 USE_I18N = True

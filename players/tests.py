@@ -9,6 +9,7 @@ from django.core.management.base import CommandError
 from io import StringIO
 import os
 import tempfile
+from zoneinfo import ZoneInfo
 
 # Create your tests here.
 
@@ -1016,3 +1017,143 @@ class LargeRatingGapTests(TestCase):
         # rating members actually see finally changes. Under the old
         # integer rounding this stayed at 1920 forever.
         self.assertEqual(self.strong.display_rating, 1921)
+
+
+class TimezoneMiddlewareTests(TestCase):
+    """The viewer's own timezone governs display and naive form input.
+
+    Stored values are always UTC. Before TimezoneMiddleware, the active zone
+    was settings.TIME_ZONE for everyone, so every visitor read Davis time on
+    the clock, and a naive "now" typed from anywhere east of Davis was parsed
+    as Davis time, landed in the future, and was rejected by Match.clean().
+    """
+
+    SAO_PAULO = "America/Sao_Paulo"
+
+    def setUp(self):
+        self.p1 = Player.objects.create(name="P1")
+        self.p2 = Player.objects.create(name="P2")
+        User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
+    def make_match(self):
+        # 02:30 UTC is 23:30 the previous day in Sao Paulo and 19:30 the
+        # previous day in Los Angeles, so no two zones render it alike.
+        return Match.objects.create(
+            player1=self.p1,
+            player2=self.p2,
+            score1=11,
+            score2=9,
+            date=datetime.datetime(2026, 8, 20, 2, 30, tzinfo=datetime.timezone.utc),
+        )
+
+    def formatted_in(self, when, zone_name):
+        return formats.date_format(
+            when.astimezone(ZoneInfo(zone_name)), "DATETIME_FORMAT"
+        )
+
+    def local_now_string(self):
+        return timezone.now().astimezone(ZoneInfo(self.SAO_PAULO)).strftime(
+            "%Y-%m-%dT%H:%M"
+        )
+
+    def new_match_payload(self, date_string):
+        return {
+            "player1": self.p1.id,
+            "player2": self.p2.id,
+            "score1": 11,
+            "score2": 9,
+            "date": date_string,
+        }
+
+    def test_datetime_renders_in_the_reported_timezone(self):
+        match = self.make_match()
+        self.client.cookies["tz"] = self.SAO_PAULO
+
+        response = self.client.get(
+            reverse("players:match_detail", args=(match.id,))
+        )
+
+        self.assertContains(response, self.formatted_in(match.date, self.SAO_PAULO))
+        self.assertNotContains(
+            response,
+            self.formatted_in(match.date, timezone.get_default_timezone_name()),
+        )
+        # The footer names the zone, so a viewer can tell which clock applies.
+        self.assertContains(response, self.SAO_PAULO)
+
+    def test_unknown_timezone_cookie_falls_back_to_the_default(self):
+        match = self.make_match()
+        # The cookie is client-supplied. An unusable value must degrade to the
+        # project default, not raise ZoneInfoNotFoundError and 500 the page.
+        self.client.cookies["tz"] = "Mars/Olympus_Mons"
+
+        response = self.client.get(
+            reverse("players:match_detail", args=(match.id,))
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            self.formatted_in(match.date, timezone.get_default_timezone_name()),
+        )
+
+    def test_no_cookie_uses_the_default_timezone(self):
+        match = self.make_match()
+
+        response = self.client.get(
+            reverse("players:match_detail", args=(match.id,))
+        )
+
+        self.assertContains(
+            response,
+            self.formatted_in(match.date, timezone.get_default_timezone_name()),
+        )
+
+    def test_active_timezone_does_not_leak_into_the_next_request(self):
+        self.client.cookies["tz"] = self.SAO_PAULO
+
+        self.client.get(reverse("players:matches"))
+
+        # The active zone is thread-local and gunicorn reuses threads, so a
+        # request that does not report a zone must not inherit the last one.
+        self.assertEqual(
+            timezone.get_current_timezone_name(),
+            timezone.get_default_timezone_name(),
+        )
+
+    def test_current_local_time_is_accepted_from_a_zone_ahead_of_the_default(self):
+        self.client.cookies["tz"] = self.SAO_PAULO
+
+        self.client.post(
+            reverse("players:new_match"),
+            self.new_match_payload(self.local_now_string()),
+        )
+
+        self.assertEqual(Match.objects.count(), 1)
+
+    def test_the_same_local_time_is_rejected_without_the_cookie(self):
+        # Documents the original bug: with no reported zone the value is read
+        # as Davis time, which is hours ahead of the wall clock in Brazil.
+        response = self.client.post(
+            reverse("players:new_match"),
+            self.new_match_payload(self.local_now_string()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 0)
+
+    def test_percent_encoded_cookie_value_is_still_understood(self):
+        match = self.make_match()
+        # Django never percent-decodes cookie values, so a client that writes
+        # the zone through encodeURIComponent sends it in this shape. Browsers
+        # that already stored it that way must keep working.
+        self.client.cookies["tz"] = "America%2FSao_Paulo"
+
+        response = self.client.get(
+            reverse("players:match_detail", args=(match.id,))
+        )
+
+        self.assertContains(
+            response, self.formatted_in(match.date, self.SAO_PAULO)
+        )

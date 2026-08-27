@@ -1,3 +1,4 @@
+{% load tz %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -7,6 +8,34 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <meta name="description" content="UCDTT Rating App">
     <title>UCDTT Rating App</title>
+    {% get_current_timezone as ACTIVE_TIME_ZONE %}
+    <script>
+      // Report the browser's timezone so the server can render every datetime
+      // in the viewer's own clock. Sits in <head> so the reload below happens
+      // before the page paints.
+      (function () {
+        var zone;
+        try {
+          zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        } catch (e) {
+          return;
+        }
+        if (!zone) return;
+        var existing = ("; " + document.cookie).split("; tz=")[1];
+        if (existing && decodeURIComponent(existing.split(";")[0]) === zone) return;
+        // Written raw on purpose. An IANA name contains no character a cookie
+        // value forbids, and Django's parse_cookie never percent-decodes, so
+        // encodeURIComponent here would reach the server as America%2FSao_Paulo.
+        document.cookie =
+          "tz=" + zone +
+          "; path=/; max-age=31536000; samesite=Lax" +
+          "{{ request.is_secure|yesno:'; secure,' }}";
+        // Reload only when this page was rendered in a different zone. The
+        // cookie check above caps it at one reload per browser even if the
+        // server rejects the reported name.
+        if (zone !== "{{ ACTIVE_TIME_ZONE|escapejs }}") window.location.reload();
+      })();
+    </script>
   </head>
   <body class="container">
     <header>
@@ -51,6 +80,7 @@
     </main>
     <footer>
       <p>UC Davis Table Tennis Club</p>
+      <p><small>All times shown in {{ ACTIVE_TIME_ZONE }}.</small></p>
     </footer>
   </body>
 </html>

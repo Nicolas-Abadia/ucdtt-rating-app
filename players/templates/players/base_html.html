@@ -6,6 +6,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+      /* Pico lays a nav out as one non-wrapping flex row, which is what made
+         "Logged in as ..." collide with the links on a narrow window. Two
+         separate fixes, on purpose:
+
+         1. Allow the row to wrap. On anything wider than a phone the links
+            stay on one line and the account dropdown drops to a second line
+            instead of overlapping when width runs out.
+         2. Below 480px, phone territory, collapse the nav behind a hamburger,
+            since even a wrapped two-line nav eats a phone screen. */
+      nav { flex-wrap: wrap; row-gap: 0.25rem; }
+      #nav-toggle-label { display: none; }
+      #nav-links {
+        display: flex;
+        flex: 1;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+      }
+      @media (max-width: 480px) {
+        #nav-toggle-label {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.75rem;
+          height: 2.75rem;
+          cursor: pointer;
+          font-size: 1.25rem;
+          line-height: 1;
+          border: 1px solid var(--pico-muted-border-color);
+          border-radius: var(--pico-border-radius);
+        }
+        /* flex: 0 0 100% rather than width: 100%, because the flex-basis of 0
+           set above would otherwise win and keep the panel on the label's own
+           row instead of pushing it onto the next line. */
+        #nav-links {
+          display: none;
+          flex: 0 0 100%;
+          flex-direction: column;
+          align-items: stretch;
+          margin-top: 0.5rem;
+          border: 1px solid var(--pico-muted-border-color);
+          border-radius: var(--pico-border-radius);
+          background: var(--pico-card-background-color);
+        }
+        /* The checkbox is the open/closed state. */
+        #nav-toggle:checked ~ #nav-links { display: flex; }
+        #nav-links > ul {
+          flex-direction: column;
+          align-items: stretch;
+          margin: 0;
+          padding: 0;
+        }
+        #nav-links > ul > li {
+          padding: 0;
+          border-bottom: 1px solid var(--pico-muted-border-color);
+        }
+        #nav-links > ul > li > a { display: block; padding: 0.75rem 1rem; }
+        /* Strip the dropdown's select-style box so the account row reads as
+           one more menu row rather than a control nested inside a panel. */
+        #nav-links > details > summary {
+          padding: 0.75rem 1rem;
+          border: 0;
+          background: transparent;
+        }
+      }
+    </style>
     <meta name="description" content="UCDTT Rating App">
     <title>UCDTT Rating App</title>
     {% get_current_timezone as ACTIVE_TIME_ZONE %}
@@ -40,6 +107,11 @@
   <body class="container">
     <header>
       <nav>
+        {# CSS-only hamburger. The checkbox holds the open state, so the menu #}
+        {# needs no JavaScript and cannot break if the CDN is slow. #}
+        <input type="checkbox" id="nav-toggle" hidden>
+        <label for="nav-toggle" id="nav-toggle-label" aria-label="Toggle menu">&#9776;</label>
+        <div id="nav-links">
         <ul>
           <li><a href="{% url 'players:index' %}">Players</a></li>
           <li><a href="{% url 'players:matches' %}">Matches</a></li>
@@ -67,7 +139,8 @@
               <li><a href="{% url 'login' %}">Officer login</a></li>
             </ul>
           {% endif %}
-        </details >
+        </details>
+        </div>
       </nav>
     </header>
     <main class="container">

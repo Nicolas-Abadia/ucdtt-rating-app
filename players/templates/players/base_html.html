@@ -49,6 +49,9 @@
             <summary>Logged in as {{ user.username }}</summary>
             <ul>
               <li>
+                <a href="{% url 'players:account' %}">Account</a>
+              </li>
+              <li>
                 <a href="{% url 'players:signup' %}">New officer account</a>
               </li>
               <li>

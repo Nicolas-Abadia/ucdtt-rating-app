@@ -51,4 +51,28 @@ class MatchForm(forms.ModelForm):
         model = Match
         fields = ["player1", "player2", "score1", "score2", "date"]
 
+
+class UsernameChangeForm(forms.ModelForm):
+    """
+    Renames the officer account that is already signed in.
+
+    Uniqueness is enforced by User.username at the database level, but going
+    through a ModelForm is what turns a collision into a field error on the
+    page instead of the IntegrityError a bare save would raise. ModelForm
+    also excludes the current instance from that check, so re-saving the
+    same name is not reported as taken.
+
+    Password changes are handled by Django's own PasswordChangeView, which
+    already requires the old password, runs the configured validators, and
+    keeps the session signed in. Nothing here duplicates that.
+    """
+
+    class Meta:
+        model = User
+        fields = ["username"]
+        labels = {"username": "Username"}
+        help_texts = {
+            "username": "Used to sign in. Letters, digits and @ . + - _ only.",
+        }
+
     

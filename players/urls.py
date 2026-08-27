@@ -16,4 +16,9 @@ urlpatterns = [
     path("matches/<int:pk>/update_match/", views.EditMatchView.as_view(), name="update_match"),
     path("matches/<int:pk>/delete_match/", views.DeleteMatchView.as_view(), name="delete_match"),
     path("signup/", views.OfficerSignUpView.as_view(), name="signup"),
+    # Username and password live on one page. django.contrib.auth.urls also
+    # routes /accounts/password_change/ to Django's own view; config/urls.py
+    # shadows that URL with a redirect here so there is a single place to
+    # change either one.
+    path("account/", views.AccountView.as_view(), name="account"),
 ]

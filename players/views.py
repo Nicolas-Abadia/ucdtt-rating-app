@@ -1,12 +1,20 @@
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import redirect
 from django.views import generic
 from django.urls import reverse_lazy
 from ratings.services import recompute_all_ratings
 from .models import Player, Match
-from .forms import MatchForm, OfficerSignUpForm, PlayerForm
+from .forms import (
+    MatchForm,
+    OfficerSignUpForm,
+    PlayerForm,
+    UsernameChangeForm,
+)
 
 # Create your views here.
 
@@ -38,6 +46,91 @@ class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
     form_class = OfficerSignUpForm
     template_name = "players/signup.html"
     success_url = reverse_lazy("players:index")
+
+class AccountView(LoginRequiredMixin, generic.TemplateView):
+    """
+        One page where a signed-in officer changes their username, their
+        password, or both in a single submit.
+
+        Two forms on one page rather than one hand-written form: the password
+        half is Django's PasswordChangeForm, which already requires the old
+        password and runs AUTH_PASSWORD_VALIDATORS. Reimplementing that is how
+        validators quietly stop applying.
+
+        The three password fields are required by that form, so they are only
+        bound when at least one of them was filled in. Otherwise changing only
+        the username would fail on three blank required fields.
+
+        Nothing here takes a user id. It always acts on request.user, because
+        a pk in the URL would let any signed-in officer rename or reset any
+        other account, including a superuser.
+    """
+    template_name = "players/account.html"
+
+    PASSWORD_FIELDS = ("old_password", "new_password1", "new_password2")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # setdefault, so a failed POST can hand back its own bound forms with
+        # the errors still attached.
+        context.setdefault(
+            "username_form", UsernameChangeForm(instance=self.request.user)
+        )
+        context.setdefault(
+            "password_form", PasswordChangeForm(user=self.request.user)
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        changing_password = any(
+            request.POST.get(field) for field in self.PASSWORD_FIELDS
+        )
+
+        username_form = UsernameChangeForm(data=request.POST, instance=user)
+        password_form = (
+            PasswordChangeForm(user=user, data=request.POST)
+            if changing_password
+            else PasswordChangeForm(user=user)
+        )
+
+        username_ok = username_form.is_valid()
+        password_ok = password_form.is_valid() if changing_password else True
+
+        if not (username_ok and password_ok):
+            # One submit, one outcome. Writing whichever half validated would
+            # leave the officer renamed with an unchanged password, or the
+            # reverse, with only a form error to explain which happened.
+            return self.render_to_response(
+                self.get_context_data(
+                    username_form=username_form,
+                    password_form=password_form,
+                )
+            )
+
+        changed = []
+        with transaction.atomic():
+            if username_form.has_changed():
+                username_form.save()
+                changed.append("username")
+            if changing_password:
+                # Both forms hold the same in-memory user object, so this save
+                # carries the new username along rather than overwriting it.
+                password_form.save()
+                changed.append("password")
+
+        if changing_password:
+            # The password hash the session was signed with is gone now, so
+            # without this the officer is logged out by their own change.
+            update_session_auth_hash(request, user)
+
+        if changed:
+            messages.success(
+                request, "Updated the " + " and ".join(changed) + "."
+            )
+        else:
+            messages.info(request, "No changes were submitted.")
+        return redirect("players:account")
 
 class AddPlayerView(LoginRequiredMixin, generic.CreateView):
     """

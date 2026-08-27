@@ -1157,3 +1157,176 @@ class TimezoneMiddlewareTests(TestCase):
         self.assertContains(
             response, self.formatted_in(match.date, self.SAO_PAULO)
         )
+
+
+class AccountEditingTests(TestCase):
+    """
+    One account page changing the username, the password, or both.
+
+    The password half is Django's PasswordChangeForm, so these tests cover the
+    wiring around it rather than Django's own validation: optional password
+    fields, the session surviving the change, and neither half being written
+    when the other fails.
+    """
+
+    PASSWORD = "testpass123"
+    NEW_PASSWORD = "b3tterpassw0rd!"
+
+    def setUp(self):
+        self.officer = User.objects.create_user(
+            username="officer", password=self.PASSWORD
+        )
+        self.client.login(username="officer", password=self.PASSWORD)
+        self.url = reverse("players:account")
+
+    def payload(self, **overrides):
+        """Username unchanged and no password change, unless overridden."""
+        data = {
+            "username": "officer",
+            "old_password": "",
+            "new_password1": "",
+            "new_password2": "",
+        }
+        data.update(overrides)
+        return data
+
+    def test_username_alone_changes_without_touching_the_password(self):
+        response = self.client.post(
+            self.url, self.payload(username="newofficer")
+        )
+
+        self.assertRedirects(response, self.url)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "newofficer")
+        self.assertTrue(self.officer.check_password(self.PASSWORD))
+
+    def test_password_alone_changes_and_keeps_the_session(self):
+        response = self.client.post(
+            self.url,
+            self.payload(
+                old_password=self.PASSWORD,
+                new_password1=self.NEW_PASSWORD,
+                new_password2=self.NEW_PASSWORD,
+            ),
+        )
+
+        # assertRedirects follows the redirect, so a session dropped by the
+        # password change would show up here as a second redirect to login.
+        self.assertRedirects(response, self.url)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "officer")
+        self.assertTrue(self.officer.check_password(self.NEW_PASSWORD))
+        self.assertEqual(self.client.get(reverse("players:new")).status_code, 200)
+
+    def test_username_and_password_change_in_one_submit(self):
+        response = self.client.post(
+            self.url,
+            self.payload(
+                username="newofficer",
+                old_password=self.PASSWORD,
+                new_password1=self.NEW_PASSWORD,
+                new_password2=self.NEW_PASSWORD,
+            ),
+        )
+
+        self.assertRedirects(response, self.url)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "newofficer")
+        self.assertTrue(self.officer.check_password(self.NEW_PASSWORD))
+        self.assertEqual(self.client.get(reverse("players:new")).status_code, 200)
+
+    def test_duplicate_username_blocks_the_whole_submit(self):
+        User.objects.create_user(username="taken", password=self.PASSWORD)
+
+        response = self.client.post(
+            self.url,
+            self.payload(
+                username="taken",
+                old_password=self.PASSWORD,
+                new_password1=self.NEW_PASSWORD,
+                new_password2=self.NEW_PASSWORD,
+            ),
+        )
+
+        # A re-rendered form, not the IntegrityError a bare save would raise,
+        # and the password half that did validate is not written on its own.
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["username_form"],
+            "username",
+            "A user with that username already exists.",
+        )
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "officer")
+        self.assertTrue(self.officer.check_password(self.PASSWORD))
+
+    def test_wrong_old_password_blocks_the_whole_submit(self):
+        response = self.client.post(
+            self.url,
+            self.payload(
+                username="newofficer",
+                old_password="not-the-old-password",
+                new_password1=self.NEW_PASSWORD,
+                new_password2=self.NEW_PASSWORD,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "officer")
+        self.assertTrue(self.officer.check_password(self.PASSWORD))
+
+    def test_weak_password_is_rejected_by_the_validators(self):
+        response = self.client.post(
+            self.url,
+            self.payload(
+                old_password=self.PASSWORD,
+                new_password1="abc",
+                new_password2="abc",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.officer.refresh_from_db()
+        self.assertTrue(self.officer.check_password(self.PASSWORD))
+
+    def test_the_page_edits_only_the_signed_in_account(self):
+        other = User.objects.create_user(
+            username="other", password=self.PASSWORD
+        )
+
+        self.client.post(
+            self.url,
+            self.payload(
+                username="renamed",
+                old_password=self.PASSWORD,
+                new_password1=self.NEW_PASSWORD,
+                new_password2=self.NEW_PASSWORD,
+            ),
+        )
+
+        # The view takes no pk, so there is no way to aim it at someone else.
+        other.refresh_from_db()
+        self.assertEqual(other.username, "other")
+        self.assertTrue(other.check_password(self.PASSWORD))
+
+    def test_submitting_nothing_new_is_a_no_op(self):
+        response = self.client.post(self.url, self.payload())
+
+        self.assertRedirects(response, self.url)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "officer")
+        self.assertTrue(self.officer.check_password(self.PASSWORD))
+
+    def test_account_page_requires_login(self):
+        self.client.logout()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_the_built_in_password_change_url_redirects_to_the_account_page(self):
+        response = self.client.get("/accounts/password_change/")
+
+        self.assertRedirects(response, self.url)

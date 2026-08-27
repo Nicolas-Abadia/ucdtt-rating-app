@@ -1,0 +1,18 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+<h2>Account</h2>
+<hr>
+<p><small>Signed in as {{ user.username }}.</small></p>
+{# One form, two Django forms inside it. The password fields are optional: #}
+{# AccountView only binds PasswordChangeForm when one of them was filled in. #}
+<form method="post">
+  {% csrf_token %}
+  <h3>Username</h3>
+  {{ username_form.as_p }}
+  <h3>Password</h3>
+  <p><small>Leave all three password fields empty to keep the current password.</small></p>
+  {{ password_form.as_p }}
+  <button type="submit">Save changes</button>
+  <a href="{% url 'players:index' %}" role="button" class="secondary">Cancel</a>
+</form>
+{% endblock content %}

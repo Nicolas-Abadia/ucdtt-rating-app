@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from . import imports
 from .models import Match, Player
 
 
@@ -52,6 +53,42 @@ class MatchForm(forms.ModelForm):
         fields = ["player1", "player2", "score1", "score2", "date"]
 
 
+class CsvUploadForm(forms.Form):
+    """
+    Officer-facing upload, shared by both CSV imports.
+
+    preview is on by default. An import writes many rows in one action, so
+    the default is to report what would happen and require a second submit
+    to write it. The preview runs the same parsing and validation as the
+    real import, so what it reports is what would be written.
+
+    The extension check is not security: content type is client-supplied and
+    an extension proves nothing. It exists to catch the ordinary mistake of
+    picking the .xlsx instead of the exported .csv, which would otherwise
+    fail as an unreadable-encoding error.
+    """
+
+    csv_file = forms.FileField(
+        label="CSV file",
+        help_text="A .csv file exported from Excel, Google Sheets or similar.",
+    )
+    preview = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Preview only",
+        help_text="Leave this checked to see what would be imported without saving anything.",
+    )
+
+    def clean_csv_file(self):
+        upload = self.cleaned_data["csv_file"]
+        if not upload.name.lower().endswith(".csv"):
+            raise forms.ValidationError("That is not a .csv file.")
+        if upload.size > imports.MAX_UPLOAD_BYTES:
+            limit = imports.MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise forms.ValidationError(f"That file is larger than {limit} MB.")
+        return upload
+
+
 class UsernameChangeForm(forms.ModelForm):
     """
     Renames the officer account that is already signed in.
@@ -62,9 +99,10 @@ class UsernameChangeForm(forms.ModelForm):
     also excludes the current instance from that check, so re-saving the
     same name is not reported as taken.
 
-    Password changes are handled by Django's own PasswordChangeView, which
-    already requires the old password, runs the configured validators, and
-    keeps the session signed in. Nothing here duplicates that.
+    Only the username. The password half of the account page is Django's
+    PasswordChangeForm, which already requires the old password, runs the
+    configured validators, and keeps the session signed in. See
+    players.views.AccountView, which submits both forms together.
     """
 
     class Meta:

@@ -3,7 +3,10 @@
   <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
     <h1>Matches Record</h1>
     {% if user.is_authenticated %}
-    <form action="{% url "players:new_match" %}"><button action="submit">Add new match</button></form>
+      <div style="display: flex; gap: 0.5rem; align-items: start;">
+        <form action="{% url "players:new_match" %}"><button type="submit">Add new match</button></form>
+        <form action="{% url "players:import_matches" %}"><button type="submit" class="secondary">Import CSV</button></form>
+      </div>
     {% endif %}
   </div>
   <hr>

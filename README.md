@@ -17,7 +17,9 @@ UC Davis Table Tennis Club internal rating system.
 - Updates ratings after each match using an Elo-style system.
 - Supports full recomputation from match history when a result needs correction.
 - Automatically replays affected ratings when a match is backdated, edited, or deleted.
-- Imports player rosters in bulk from a CSV file.
+- Imports players and match history in bulk from CSV, from the browser or the command line.
+- Displays every date and time in the viewer's own timezone.
+- Lets a signed-in officer change their own username and password.
 
 ## Tech stack
 
@@ -127,6 +129,36 @@ python manage.py import_players roster.csv             # write
 
 Always run `--dry-run` first. It prints the target database and every row it would skip.
 
+### `import_matches`
+
+Bulk-creates matches from a CSV. All five columns are required. Players are resolved by name, case-insensitively, and are never created implicitly, so import the roster first.
+
+```csv
+player1,player2,score1,score2,date
+Alice Chen,Bob Rivera,11,7,2026-08-20 19:30
+Carla Diaz,Alice Chen,9,11,2026-08-21
+```
+
+```bash
+python manage.py import_matches matches.csv --dry-run   # report only, writes nothing
+python manage.py import_matches matches.csv             # write
+```
+
+Dates accept `YYYY-MM-DD HH:MM` or a bare `YYYY-MM-DD`, which is read as midnight. A timestamp with no UTC offset is interpreted in `settings.TIME_ZONE`, which the command prints before writing; include an offset such as `2026-08-20T19:30-03:00` to remove the ambiguity.
+
+The file does not need to be in chronological order. Matches are inserted with `bulk_create` and ratings are rebuilt once at the end by a single `recompute_all_ratings()` call inside the same transaction, rather than replaying the whole history once per row. Because `bulk_create` skips `save()` and `full_clean()`, every rule the match form enforces (distinct players, non-negative scores, no ties, no future dates, no duplicates) is checked in Python first. Offending rows are skipped and reported by line number instead of rolling back the entire file.
+
+## CSV imports from the browser
+
+Officers can upload the same files from the app, so a roster or backfill no longer requires a local checkout:
+
+| Page | URL |
+| --- | --- |
+| Import players | `/import_players/` |
+| Import matches | `/matches/import_matches/` |
+
+Both pages sit behind an Import CSV button next to Add new player and Add new match, and both require login. Parsing, validation, and the rating rebuild are shared with the management commands through `players/imports.py`, so the same file produces the same result either way. Preview only is checked by default: the first upload reports what would be created and what would be skipped, and writes nothing. Uploads must end in `.csv` and are capped at 2 MB. One difference from the commands: a timestamp with no offset is read in the uploader's own timezone rather than `settings.TIME_ZONE`.
+
 ## Running management commands against production
 
 Neon accepts connections from anywhere, so production maintenance runs from a local checkout.
@@ -136,6 +168,7 @@ Keep the production connection string in `.neon-prod-url`, which is gitignored, 
 ```bash
 source .venv/bin/activate
 DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_players roster.csv --dry-run
+DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_matches matches.csv --dry-run
 ```
 
 ## Deployment

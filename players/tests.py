@@ -1,6 +1,7 @@
 from django.test import TestCase
 import datetime
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import formats, timezone
 from .models import Player, Match, RatingHistory
 from django.urls import reverse
@@ -1330,3 +1331,265 @@ class AccountEditingTests(TestCase):
         response = self.client.get("/accounts/password_change/")
 
         self.assertRedirects(response, self.url)
+
+
+class CsvImportViewTests(TestCase):
+    """
+    The officer-facing CSV uploads.
+
+    Row-level parsing and validation are shared with the management commands
+    (players/imports.py), so these cover the upload surface: login, the
+    preview step, the skipped-row report, rejected files, and the single
+    rating rebuild that follows a match import.
+    """
+
+    PASSWORD = "testpass123"
+
+    def setUp(self):
+        User.objects.create_user(username="officer", password=self.PASSWORD)
+        self.client.login(username="officer", password=self.PASSWORD)
+        self.players_url = reverse("players:import_players")
+        self.matches_url = reverse("players:import_matches")
+
+    def upload(self, content, name="roster.csv"):
+        return SimpleUploadedFile(
+            name, content.encode("utf-8"), content_type="text/csv"
+        )
+
+    def add_two_players(self):
+        Player.objects.create(name="Alice", rating=1200, initial_rating=1200)
+        Player.objects.create(name="Ben", rating=1200, initial_rating=1200)
+
+    def test_player_import_requires_login(self):
+        self.client.logout()
+
+        response = self.client.get(self.players_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_match_import_requires_login(self):
+        self.client.logout()
+
+        response = self.client.get(self.matches_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_preview_writes_nothing(self):
+        response = self.client.post(
+            self.players_url,
+            {
+                "csv_file": self.upload("name,rating\nAlice,1300\n"),
+                "preview": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["pending"]), 1)
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_import_creates_players(self):
+        response = self.client.post(
+            self.players_url,
+            {"csv_file": self.upload("name,rating\nAlice,1300\nBen,\n")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Player.objects.count(), 2)
+        self.assertEqual(Player.objects.get(name="Alice").initial_rating, 1300)
+        # A blank rating falls back to the default, in both columns, so a
+        # later recompute cannot wipe it.
+        ben = Player.objects.get(name="Ben")
+        self.assertEqual(ben.initial_rating, 1200)
+        self.assertEqual(ben.rating, 1200)
+
+    def test_skipped_rows_are_reported_and_the_rest_still_imports(self):
+        Player.objects.create(name="alice", rating=1200, initial_rating=1200)
+
+        response = self.client.post(
+            self.players_url,
+            {"csv_file": self.upload("name,rating\nAlice,1300\nBen,1250\n")},
+        )
+
+        self.assertEqual(Player.objects.count(), 2)
+        skipped = response.context["skipped"]
+        self.assertEqual(len(skipped), 1)
+        self.assertIn("already in the database", skipped[0][1])
+
+    def test_a_missing_column_is_a_form_error_and_writes_nothing(self):
+        response = self.client.post(
+            self.players_url,
+            {"csv_file": self.upload("player,rating\nAlice,1300\n")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "csv_file",
+            "The CSV needs a 'name' column. Found: player, rating",
+        )
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_a_file_that_is_not_a_csv_is_rejected(self):
+        response = self.client.post(
+            self.players_url,
+            {"csv_file": self.upload("name\nAlice\n", name="roster.txt")},
+        )
+
+        self.assertFormError(
+            response.context["form"], "csv_file", "That is not a .csv file."
+        )
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_match_import_rebuilds_ratings_in_date_order(self):
+        self.add_two_players()
+        # Deliberately not in chronological order: the later match is listed
+        # first. bulk_create bypasses Match.save(), so correctness here comes
+        # entirely from the single recompute that follows, which replays in
+        # (date, id) order.
+        content = (
+            "player1,player2,score1,score2,date\n"
+            "Alice,Ben,11,7,2026-08-20 19:30\n"
+            "Ben,Alice,11,9,2026-08-19 19:30\n"
+        )
+
+        response = self.client.post(
+            self.matches_url,
+            {"csv_file": self.upload(content, name="matches.csv")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 2)
+        # Ben wins on the 19th from 1200/1200, then Alice wins on the 20th
+        # from 1184/1216. Applying them in file order would swap these.
+        self.assertAlmostEqual(
+            Player.objects.get(name="Alice").rating, 1201.4695008, places=4
+        )
+        self.assertAlmostEqual(
+            Player.objects.get(name="Ben").rating, 1198.5304992, places=4
+        )
+        self.assertEqual(RatingHistory.objects.count(), 4)
+
+    def test_match_rows_that_break_the_rules_are_skipped(self):
+        self.add_two_players()
+        future = (timezone.now() + datetime.timedelta(days=1)).strftime(
+            "%Y-%m-%d %H:%M"
+        )
+        content = (
+            "player1,player2,score1,score2,date\n"
+            f"Alice,Ben,11,7,{future}\n"
+            "Alice,Carla,11,7,2026-08-20 19:30\n"
+            "Alice,Alice,11,7,2026-08-20 19:30\n"
+            "Alice,Ben,11,11,2026-08-20 19:30\n"
+            "Alice,Ben,11,7,sometime last week\n"
+            "Alice,Ben,11,7,2026-08-20 19:30\n"
+        )
+
+        response = self.client.post(
+            self.matches_url,
+            {"csv_file": self.upload(content, name="matches.csv")},
+        )
+
+        # Only the last row survives. Every rule that the database would
+        # enforce is applied here instead, because one constraint violation
+        # would roll back the whole import.
+        self.assertEqual(Match.objects.count(), 1)
+        reasons = [reason for line, reason in response.context["skipped"]]
+        self.assertEqual(len(reasons), 5)
+        self.assertIn("date is in the future", reasons[0])
+        self.assertIn("not on the roster: Carla", reasons[1])
+        self.assertIn("a player cannot play themselves", reasons[2])
+        self.assertIn("one player must win", reasons[3])
+        self.assertIn("date is not a date and time", reasons[4])
+
+    def test_a_naive_date_is_read_in_the_viewers_timezone(self):
+        self.add_two_players()
+        self.client.cookies["tz"] = "America/Sao_Paulo"
+
+        self.client.post(
+            self.matches_url,
+            {
+                "csv_file": self.upload(
+                    "player1,player2,score1,score2,date\n"
+                    "Alice,Ben,11,7,2026-08-20 19:30\n",
+                    name="matches.csv",
+                )
+            },
+        )
+
+        # 19:30 in Sao Paulo (UTC-3) is 22:30 UTC. Storage is UTC either
+        # way; the cookie is what decides which 19:30 was meant.
+        stored = Match.objects.get().date.astimezone(datetime.timezone.utc)
+        self.assertEqual(stored.strftime("%Y-%m-%d %H:%M"), "2026-08-20 22:30")
+
+
+class ImportMatchesCommandTests(TestCase):
+    """
+    The match import command. Row validation is shared with the upload view,
+    so this covers the command surface: file handling, the dry run, and the
+    single rebuild reported at the end.
+    """
+
+    def setUp(self):
+        self.alice = Player.objects.create(
+            name="Alice", rating=1200, initial_rating=1200
+        )
+        self.ben = Player.objects.create(
+            name="Ben", rating=1200, initial_rating=1200
+        )
+
+    def write_csv(self, content):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".csv", delete=False, encoding="utf-8"
+        )
+        handle.write(content)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_imports_matches_and_rebuilds_ratings_once(self):
+        path = self.write_csv(
+            "player1,player2,score1,score2,date\n"
+            "Alice,Ben,11,7,2026-08-20 19:30\n"
+            "Ben,Alice,11,9,2026-08-19 19:30\n"
+        )
+        out = StringIO()
+
+        call_command("import_matches", path, stdout=out)
+
+        self.assertEqual(Match.objects.count(), 2)
+        self.assertIn("Created 2 match(es)", out.getvalue())
+        self.assertIn("Replayed 2 match(es)", out.getvalue())
+        self.alice.refresh_from_db()
+        self.assertAlmostEqual(self.alice.rating, 1201.4695008, places=4)
+
+    def test_dry_run_writes_nothing(self):
+        path = self.write_csv(
+            "player1,player2,score1,score2,date\n"
+            "Alice,Ben,11,7,2026-08-20 19:30\n"
+        )
+        out = StringIO()
+
+        call_command("import_matches", path, "--dry-run", stdout=out)
+
+        self.assertEqual(Match.objects.count(), 0)
+        self.assertIn("Dry run: would create 1 match(es)", out.getvalue())
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.rating, 1200)
+
+    def test_a_missing_column_is_reported(self):
+        path = self.write_csv(
+            "player1,player2,score1,date\nAlice,Ben,11,2026-08-20 19:30\n"
+        )
+
+        with self.assertRaisesMessage(
+            CommandError, "The CSV needs a 'score2' column."
+        ):
+            call_command("import_matches", path, stdout=StringIO())
+
+    def test_a_missing_file_is_reported(self):
+        with self.assertRaisesMessage(CommandError, "No such file:"):
+            call_command(
+                "import_matches", "/nonexistent/matches.csv", stdout=StringIO()
+            )

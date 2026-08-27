@@ -1,3 +1,5 @@
+import io
+
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -8,8 +10,10 @@ from django.shortcuts import redirect
 from django.views import generic
 from django.urls import reverse_lazy
 from ratings.services import recompute_all_ratings
+from . import imports
 from .models import Player, Match
 from .forms import (
+    CsvUploadForm,
     MatchForm,
     OfficerSignUpForm,
     PlayerForm,
@@ -257,3 +261,131 @@ class DeleteMatchView(LoginRequiredMixin, generic.DeleteView):
     model = Match
     template_name = "players/match_confirm_delete.html"
     success_url = reverse_lazy("players:matches")
+
+class CsvImportView(LoginRequiredMixin, generic.FormView):
+    """
+        Shared behaviour for the two CSV imports. Subclasses supply the
+        columns, the row builder and the writer.
+
+        One view for both means the upload rules, the preview step and the
+        skipped-row report cannot drift apart between players and matches.
+        The parsing itself lives in players/imports.py, shared with the
+        `import_players` and `import_matches` management commands, so the
+        browser and the command line accept exactly the same files.
+
+        A preview and a real import take the same path. That is what makes
+        the preview trustworthy: the only difference is whether the writer
+        runs at the end.
+    """
+    template_name = "players/csv_import.html"
+    form_class = CsvUploadForm
+
+    title = ""
+    columns = ()
+    example = ""
+    notes = ""
+
+    def build(self, rows):
+        """Returns (to_create, skipped). Implemented by subclasses."""
+        raise NotImplementedError
+
+    def write(self, to_create):
+        """Persists the built objects. Implemented by subclasses."""
+        raise NotImplementedError
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("title", self.title)
+        context.setdefault("columns", self.columns)
+        context.setdefault("example", self.example)
+        context.setdefault("notes", self.notes)
+        return context
+
+    def labels(self, objects):
+        # players.imports attaches a label built from the row itself, so
+        # reporting an import costs no queries. Reading str(match) here
+        # would fetch both players once per row.
+        return [getattr(obj, "_label", None) or str(obj) for obj in objects]
+
+    def form_valid(self, form):
+        upload = form.cleaned_data["csv_file"]
+        # csv requires newline="", and utf-8-sig drops the byte-order mark
+        # that spreadsheet exports prepend.
+        stream = io.TextIOWrapper(upload, encoding="utf-8-sig", newline="")
+        try:
+            rows = imports.read_rows(stream, self.columns, upload.name)
+            to_create, skipped = self.build(rows)
+        except imports.CsvImportError as error:
+            # An unusable file is a problem with this field's value, so it
+            # belongs on the field rather than in a page-level message.
+            form.add_error("csv_file", str(error))
+            return self.form_invalid(form)
+
+        preview = form.cleaned_data["preview"]
+        if not preview and to_create:
+            self.write(to_create)
+
+        labels = self.labels(to_create)
+        return self.render_to_response(
+            self.get_context_data(
+                form=form,
+                ran=True,
+                preview=preview,
+                pending=labels if preview else [],
+                created=[] if preview else labels,
+                skipped=skipped,
+            )
+        )
+
+class ImportPlayersView(CsvImportView):
+    """
+        Bulk roster upload. Officers already had this as a management
+        command, which needs a shell and a database URL; this is the same
+        import for someone who has neither.
+    """
+    title = "Import players from CSV"
+    columns = imports.PLAYER_COLUMNS
+    example = "name,rating\nAlice Chen,1350\nBen Ortiz,"
+    notes = (
+        "rating is optional and defaults to 1200. It seeds the starting "
+        "rating; match results are what change it afterwards. A player who "
+        "is already on the roster is skipped, never overwritten, and the "
+        "comparison ignores capitalisation."
+    )
+
+    def build(self, rows):
+        return imports.build_players(rows)
+
+    def write(self, to_create):
+        imports.save_players(to_create)
+
+class ImportMatchesView(CsvImportView):
+    """
+        Bulk match upload, for backfilling a season or a tournament that was
+        recorded on paper.
+
+        Ratings are rebuilt once after the insert rather than per match, so
+        the file does not need to be in chronological order and a large
+        import costs one replay instead of one per row. See
+        imports.save_matches.
+    """
+    title = "Import matches from CSV"
+    columns = imports.MATCH_COLUMNS
+    example = (
+        "player1,player2,score1,score2,date\n"
+        "Alice Chen,Ben Ortiz,11,7,2026-08-20 19:30"
+    )
+    notes = (
+        "player1 and player2 must already be on the roster; a name that is "
+        "not there is skipped rather than created. A date without a UTC "
+        "offset is read in the timezone named in the page footer, so it "
+        "means the same time it would mean on the match form. Ratings are "
+        "rebuilt once after the import, so the file does not need to be in "
+        "date order."
+    )
+
+    def build(self, rows):
+        return imports.build_matches(rows)
+
+    def write(self, to_create):
+        imports.save_matches(to_create)

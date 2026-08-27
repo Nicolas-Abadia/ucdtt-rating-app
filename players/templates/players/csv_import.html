@@ -1,0 +1,43 @@
+{% extends "players/base_html.html" %}
+{% block content %}
+  <h2>{{ title }}</h2>
+  <p>
+    Required columns:
+    {% for column in columns %}<code>{{ column }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
+  </p>
+  <p><small>{{ notes }}</small></p>
+  <details>
+    <summary>Example file</summary>
+    <pre><code>{{ example }}</code></pre>
+  </details>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Upload</button>
+  </form>
+  {% if ran %}
+    <hr>
+    {% if preview %}
+      <h3>Preview: {{ pending|length }} row(s) would be imported</h3>
+      <ul>
+        {% for label in pending %}<li>{{ label }}</li>{% endfor %}
+      </ul>
+      <p>
+        <small>Nothing was saved. To import, uncheck "Preview only" and upload the same file again.</small>
+      </p>
+    {% else %}
+      <h3>Imported {{ created|length }} row(s)</h3>
+      <ul>
+        {% for label in created %}<li>{{ label }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% if skipped %}
+      <h3>Skipped {{ skipped|length }} row(s)</h3>
+      {# Line numbers are physical lines in the file, so they match what a #}
+      {# spreadsheet or an editor shows. #}
+      <ul>
+        {% for line, reason in skipped %}<li>line {{ line }}: {{ reason }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+{% endblock content %}

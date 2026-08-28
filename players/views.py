@@ -46,10 +46,24 @@ class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
         Create a new officer account. Requires an existing officer to be
         logged in, since v1 has officer-only accounts and no public
         self-registration.
+
+        The redirect lands on the leaderboard, which says nothing about what
+        just happened, so the creation is reported through a message. The new
+        account is not visible anywhere in the app either: officers are
+        auth users, not players, so there is no list to check.
     """
     form_class = OfficerSignUpForm
     template_name = "players/signup.html"
     success_url = reverse_lazy("players:index")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f"Officer account \"{self.object.username}\" created. "
+            "It can sign in now with the password just set.",
+        )
+        return response
 
 class AccountView(LoginRequiredMixin, generic.TemplateView):
     """

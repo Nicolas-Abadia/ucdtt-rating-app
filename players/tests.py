@@ -600,6 +600,53 @@ class EditPlayerInitialRatingTests(TestCase):
         self.assertEqual(p1.rating, 1216)
 
 
+class OfficerSignUpFeedbackTests(TestCase):
+    """
+    A successful signup redirects to the leaderboard, which says nothing
+    about the account that was just created, and officers are auth users
+    rather than players, so they show up in no list either. The message is
+    the only confirmation the officer gets, which is why it is asserted on.
+    """
+
+    def setUp(self):
+        User.objects.create_user(username="officer", password="testpass123")
+        self.client.login(username="officer", password="testpass123")
+
+    def test_created_officer_is_reported_on_the_landing_page(self):
+        response = self.client.post(
+            reverse("players:signup"),
+            {
+                "username": "newofficer",
+                "password1": "str0ng-testpass!",
+                "password2": "str0ng-testpass!",
+            },
+            follow=True,
+        )
+        self.assertRedirects(response, reverse("players:index"))
+        self.assertTrue(User.objects.filter(username="newofficer").exists())
+        # The username, not the whole sentence: the quotes around it are
+        # HTML-escaped in the rendered page.
+        self.assertContains(response, "newofficer")
+        self.assertContains(response, "created")
+
+    def test_rejected_signup_reports_nothing(self):
+        """
+        No account, no success message. A message queued before validation
+        would announce a signup that never happened.
+        """
+        response = self.client.post(
+            reverse("players:signup"),
+            {
+                "username": "newofficer",
+                "password1": "str0ng-testpass!",
+                "password2": "different-testpass!",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="newofficer").exists())
+        self.assertEqual(list(response.context["messages"]), [])
+
+
 class OfficerOnlyVisibilityTests(TestCase):
     """
     These actions are already blocked by LoginRequiredMixin. What's checked

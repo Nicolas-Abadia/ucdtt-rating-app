@@ -72,6 +72,63 @@
           background: transparent;
         }
       }
+
+      /* Toasts. Pico v2 ships no toast, alert or notification component
+         (accordion, card, dropdown, group, loading, modal, nav, progress,
+         tooltip is the whole list), so this is hand-rolled out of Pico's
+         own variables, which keeps it correct in both color schemes.
+
+         Fixed rather than in the flow: a message that pushed the page
+         content down and then vanished would make the whole page jump. */
+      #messages {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 99;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: min(24rem, calc(100vw - 2rem));
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      /* list-style on the <ul> is not enough: Pico sets the marker on the
+         <li> itself, and a value set on the child beats one inherited from
+         the parent, so the square survived. Cleared on the li directly. */
+      #messages li {
+        list-style: none;
+        margin: 0;
+        padding: 0.75rem 1rem;
+        border-left: 4px solid var(--pico-primary);
+        border-radius: var(--pico-border-radius);
+        background: var(--pico-card-background-color);
+        box-shadow: var(--pico-card-box-shadow);
+        font-size: 0.9rem;
+        /* Slide in, hold, fade out. "forwards" is what keeps the final
+           hidden state instead of snapping back to fully visible. */
+        animation: toast-in 0.25s ease-out,
+                   toast-out 0.5s ease-in 6s forwards;
+      }
+      #messages li.success { border-left-color: var(--pico-ins-color); }
+      #messages li.warning,
+      #messages li.error { border-left-color: var(--pico-del-color); }
+      @keyframes toast-in {
+        from { opacity: 0; transform: translateX(1.5rem); }
+      }
+      @keyframes toast-out {
+        to { opacity: 0; visibility: hidden; }
+      }
+      /* Reduced motion drops the movement but still has to let the toast
+         leave, otherwise it would sit there forever. */
+      @media (prefers-reduced-motion: reduce) {
+        #messages li { animation: toast-out 1ms linear 6s forwards; }
+      }
+      /* Phone width: a 24rem panel pinned right would sit off-center, so
+         it spans the screen instead. */
+      @media (max-width: 480px) {
+        #messages { left: 1rem; right: 1rem; width: auto; }
+      }
     </style>
     <meta name="description" content="UCDTT Rating App">
     <title>UCDTT Rating App</title>
@@ -145,7 +202,9 @@
     </header>
     <main class="container">
       {% if messages %}
-        <ul class="messages">
+        {# Toast stack. aria-live so a screen reader announces it even #}
+        {# though it is visually off in the corner and times out. #}
+        <ul id="messages" role="status" aria-live="polite">
           {% for message in messages %}
             <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
           {% endfor %}

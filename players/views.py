@@ -1,4 +1,4 @@
-import io
+from uuid import uuid4
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -273,9 +273,14 @@ class CsvImportView(LoginRequiredMixin, generic.FormView):
         `import_players` and `import_matches` management commands, so the
         browser and the command line accept exactly the same files.
 
-        A preview and a real import take the same path. That is what makes
-        the preview trustworthy: the only difference is whether the writer
-        runs at the end.
+        The file is picked once. Uploading it previews what would land in
+        the database, and the import is confirmed from that same preview:
+        the file's text is held in the session for one confirmation instead
+        of being asked for again.
+
+        A preview and the import it confirms take the same path. That is
+        what makes the preview trustworthy: the only difference is whether
+        the writer runs at the end.
     """
     template_name = "players/csv_import.html"
     form_class = CsvUploadForm
@@ -284,6 +289,10 @@ class CsvImportView(LoginRequiredMixin, generic.FormView):
     columns = ()
     example = ""
     notes = ""
+    # Namespaces the held file. Without it a roster preview could be
+    # confirmed through the match importer, which would import rows nobody
+    # reviewed.
+    stash_key = ""
 
     def build(self, rows):
         """Returns (to_create, skipped). Implemented by subclasses."""
@@ -307,13 +316,75 @@ class CsvImportView(LoginRequiredMixin, generic.FormView):
         # would fetch both players once per row.
         return [getattr(obj, "_label", None) or str(obj) for obj in objects]
 
+    # The uploaded file waits in the session between the preview and its
+    # confirmation. The session rather than a hidden field in the page: the
+    # file can be 2 MB, so sending it back and forth would double the weight
+    # of the preview and would let the browser alter what it is about to
+    # confirm. Sessions are stored in the database, so a preview also
+    # survives landing on a different gunicorn worker in production, which a
+    # local-memory cache would not.
+    def session_prefix(self):
+        return f"csv_import:{self.stash_key}:"
+
+    def session_key(self, token):
+        return f"{self.session_prefix()}{token}"
+
+    def hold(self, text, filename):
+        """
+        Keeps the file's text for one confirmation and returns its token.
+
+        One pending file per importer: a new upload replaces the previous
+        one, so previewing repeatedly cannot pile megabytes into a session.
+        """
+        self.forget()
+        token = uuid4().hex
+        self.request.session[self.session_key(token)] = {
+            "text": text,
+            "filename": filename,
+        }
+        return token
+
+    def take(self, token):
+        """
+        Returns the held file and forgets it, or None if there is none.
+
+        Forgetting it here is what makes a refresh or a double click safe:
+        the second confirmation has nothing left to import.
+        """
+        held = self.request.session.get(self.session_key(token)) if token else None
+        if held is not None:
+            self.forget()
+        return held
+
+    def forget(self):
+        prefix = self.session_prefix()
+        for key in [
+            key for key in self.request.session.keys() if key.startswith(prefix)
+        ]:
+            del self.request.session[key]
+
+    def post(self, request, *args, **kwargs):
+        if "confirm" in request.POST:
+            return self.confirm(request.POST.get("token", ""))
+        if "discard" in request.POST:
+            self.forget()
+            return redirect(request.path)
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
+        """
+        Step one: parse the upload, report what it would do, and hold it.
+
+        Nothing is written here. A file with no importable row is not held,
+        since there would be nothing to confirm.
+        """
         upload = form.cleaned_data["csv_file"]
-        # csv requires newline="", and utf-8-sig drops the byte-order mark
-        # that spreadsheet exports prepend.
-        stream = io.TextIOWrapper(upload, encoding="utf-8-sig", newline="")
         try:
-            rows = imports.read_rows(stream, self.columns, upload.name)
+            # Read as text so that the confirmation parses exactly these
+            # bytes without asking for the file again. utf-8-sig drops the
+            # byte-order mark spreadsheet exports prepend.
+            text = imports.read_upload_text(upload, upload.name)
+            rows = imports.rows_from_text(text, self.columns, upload.name)
             to_create, skipped = self.build(rows)
         except imports.CsvImportError as error:
             # An unusable file is a problem with this field's value, so it
@@ -321,18 +392,53 @@ class CsvImportView(LoginRequiredMixin, generic.FormView):
             form.add_error("csv_file", str(error))
             return self.form_invalid(form)
 
-        preview = form.cleaned_data["preview"]
-        if not preview and to_create:
-            self.write(to_create)
-
-        labels = self.labels(to_create)
         return self.render_to_response(
             self.get_context_data(
-                form=form,
-                ran=True,
-                preview=preview,
-                pending=labels if preview else [],
-                created=[] if preview else labels,
+                form=self.form_class(),
+                previewed=True,
+                token=self.hold(text, upload.name) if to_create else "",
+                filename=upload.name,
+                pending=self.labels(to_create),
+                skipped=skipped,
+            )
+        )
+
+    def confirm(self, token):
+        """
+        Step two: import the file that was previewed.
+
+        The rows are parsed and validated again instead of reusing the
+        objects built for the preview. Between the two requests another
+        officer may have added one of these players or logged one of these
+        matches, so the database is asked again and the report describes
+        what was actually written.
+        """
+        held = self.take(token)
+        if held is None:
+            # Expired, already confirmed, discarded, or belonging to the
+            # other importer. Nothing is written on a guess.
+            return self.render_to_response(
+                self.get_context_data(form=self.form_class(), expired=True)
+            )
+
+        filename = held["filename"]
+        try:
+            rows = imports.rows_from_text(held["text"], self.columns, filename)
+            to_create, skipped = self.build(rows)
+        except imports.CsvImportError as error:
+            form = self.form_class()
+            form.add_error("csv_file", str(error))
+            return self.form_invalid(form)
+
+        if to_create:
+            self.write(to_create)
+
+        return self.render_to_response(
+            self.get_context_data(
+                form=self.form_class(),
+                imported=True,
+                filename=filename,
+                created=self.labels(to_create),
                 skipped=skipped,
             )
         )
@@ -345,10 +451,10 @@ class ImportPlayersView(CsvImportView):
     """
     title = "Import players from CSV"
     columns = imports.PLAYER_COLUMNS
+    stash_key = "players"
     example = "name,rating\nAlice Chen,1350\nBen Ortiz,"
     notes = (
-        "rating is optional and defaults to 1200. It seeds the starting "
-        "rating; match results are what change it afterwards. A player who "
+        "rating is optional and defaults to 1200. A player who "
         "is already on the roster is skipped, never overwritten, and the "
         "comparison ignores capitalisation."
     )
@@ -371,6 +477,7 @@ class ImportMatchesView(CsvImportView):
     """
     title = "Import matches from CSV"
     columns = imports.MATCH_COLUMNS
+    stash_key = "matches"
     example = (
         "player1,player2,score1,score2,date\n"
         "Alice Chen,Ben Ortiz,11,7,2026-08-20 19:30"
@@ -378,9 +485,7 @@ class ImportMatchesView(CsvImportView):
     notes = (
         "player1 and player2 must already be on the roster; a name that is "
         "not there is skipped rather than created. A date without a UTC "
-        "offset is read in the timezone named in the page footer, so it "
-        "means the same time it would mean on the match form. Ratings are "
-        "rebuilt once after the import, so the file does not need to be in "
+        "offset is read in the timezone named in the user's timezone. File does not need to be in "
         "date order."
     )
 

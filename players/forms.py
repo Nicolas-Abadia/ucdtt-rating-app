@@ -57,10 +57,10 @@ class CsvUploadForm(forms.Form):
     """
     Officer-facing upload, shared by both CSV imports.
 
-    preview is on by default. An import writes many rows in one action, so
-    the default is to report what would happen and require a second submit
-    to write it. The preview runs the same parsing and validation as the
-    real import, so what it reports is what would be written.
+    Only the file is asked for. Whether to write is not a field here: an
+    upload always produces a preview, and the import is confirmed from that
+    preview without picking the file a second time. See
+    players.views.CsvImportView.
 
     The extension check is not security: content type is client-supplied and
     an extension proves nothing. It exists to catch the ordinary mistake of
@@ -71,12 +71,6 @@ class CsvUploadForm(forms.Form):
     csv_file = forms.FileField(
         label="CSV file",
         help_text="A .csv file exported from Excel, Google Sheets or similar.",
-    )
-    preview = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="Preview only",
-        help_text="Leave this checked to see what would be imported without saving anything.",
     )
 
     def clean_csv_file(self):

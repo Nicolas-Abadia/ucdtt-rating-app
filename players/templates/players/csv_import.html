@@ -6,38 +6,50 @@
     {% for column in columns %}<code>{{ column }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
   </p>
   <p><small>{{ notes }}</small></p>
-  <details>
-    <summary>Example file</summary>
-    <pre><code>{{ example }}</code></pre>
-  </details>
+  <p>Example file:</p>
+  <pre><code>{{ example }}</code></pre>
+  {% if expired %}
+    <p>
+      <small>That preview is no longer held, so nothing was imported. Upload the file again to review it.</small>
+    </p>
+  {% endif %}
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Upload</button>
+    <button type="submit">{% if previewed or imported %}Upload a different file{% else %}Upload{% endif %}</button>
   </form>
-  {% if ran %}
+  {% if previewed %}
     <hr>
-    {% if preview %}
-      <h3>Preview: {{ pending|length }} row(s) would be imported</h3>
-      <ul>
-        {% for label in pending %}<li>{{ label }}</li>{% endfor %}
-      </ul>
-      <p>
-        <small>Nothing was saved. To import, uncheck "Preview only" and upload the same file again.</small>
-      </p>
+    <h3>Preview of {{ filename }}: {{ pending|length }} row(s) would be imported</h3>
+    <ul>
+      {% for label in pending %}<li>{{ label }}</li>{% endfor %}
+    </ul>
+    {% if pending %}
+      {# The file itself is held on the server until this is answered, so #}
+      {# confirming does not ask for it a second time. #}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit" name="confirm" value="1">Import these {{ pending|length }} row(s)</button>
+        <button type="submit" name="discard" value="1">Discard</button>
+      </form>
+      <p><small>Nothing has been saved yet.</small></p>
     {% else %}
-      <h3>Imported {{ created|length }} row(s)</h3>
-      <ul>
-        {% for label in created %}<li>{{ label }}</li>{% endfor %}
-      </ul>
+      <p><small>Nothing here can be imported. Fix the file and upload it again.</small></p>
     {% endif %}
-    {% if skipped %}
-      <h3>Skipped {{ skipped|length }} row(s)</h3>
-      {# Line numbers are physical lines in the file, so they match what a #}
-      {# spreadsheet or an editor shows. #}
-      <ul>
-        {% for line, reason in skipped %}<li>line {{ line }}: {{ reason }}</li>{% endfor %}
-      </ul>
-    {% endif %}
+  {% elif imported %}
+    <hr>
+    <h3>Imported {{ created|length }} row(s) from {{ filename }}</h3>
+    <ul>
+      {% for label in created %}<li>{{ label }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  {% if skipped %}
+    <h3>Skipped {{ skipped|length }} row(s)</h3>
+    {# Line numbers are physical lines in the file, so they match what a #}
+    {# spreadsheet or an editor shows. #}
+    <ul>
+      {% for line, reason in skipped %}<li>line {{ line }}: {{ reason }}</li>{% endfor %}
+    </ul>
   {% endif %}
 {% endblock content %}

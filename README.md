@@ -157,7 +157,11 @@ Officers can upload the same files from the app, so a roster or backfill no long
 | Import players | `/import_players/` |
 | Import matches | `/matches/import_matches/` |
 
-Both pages sit behind an Import CSV button next to Add new player and Add new match, and both require login. Parsing, validation, and the rating rebuild are shared with the management commands through `players/imports.py`, so the same file produces the same result either way. Preview only is checked by default: the first upload reports what would be created and what would be skipped, and writes nothing. Uploads must end in `.csv` and are capped at 2 MB. One difference from the commands: a timestamp with no offset is read in the uploader's own timezone rather than `settings.TIME_ZONE`.
+Both pages sit behind an Import CSV button next to Add new player and Add new match, and both require login. Parsing, validation, and the rating rebuild are shared with the management commands through `players/imports.py`, so the same file produces the same result either way.
+
+The file is picked once. Uploading it writes nothing: it reports what would be created and what would be skipped, and offers Import and Discard. Confirming imports the file that was just previewed, without asking for it again. While the preview is on screen the file's text waits in the officer's session, keyed by a one-use token, so a refresh or a double click cannot import the same file twice, and a token from the roster importer cannot be confirmed through the match importer. Confirming re-reads the database rather than trusting the preview, so a row that another officer added in between is reported as skipped instead of written twice.
+
+Uploads must end in `.csv` and are capped at 2 MB. One difference from the commands: a timestamp with no offset is read in the uploader's own timezone rather than `settings.TIME_ZONE`.
 
 ## Running management commands against production
 

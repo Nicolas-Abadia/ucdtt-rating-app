@@ -1339,8 +1339,9 @@ class CsvImportViewTests(TestCase):
 
     Row-level parsing and validation are shared with the management commands
     (players/imports.py), so these cover the upload surface: login, the
-    preview step, the skipped-row report, rejected files, and the single
-    rating rebuild that follows a match import.
+    single upload that previews and is then confirmed, the held file and its
+    token, the skipped-row report, rejected files, and the single rating
+    rebuild that follows a match import.
     """
 
     PASSWORD = "testpass123"
@@ -1360,6 +1361,21 @@ class CsvImportViewTests(TestCase):
         Player.objects.create(name="Alice", rating=1200, initial_rating=1200)
         Player.objects.create(name="Ben", rating=1200, initial_rating=1200)
 
+    def preview(self, url, content, name="roster.csv"):
+        """Step one: upload the file and get the preview back."""
+        return self.client.post(
+            url, {"csv_file": self.upload(content, name=name)}
+        )
+
+    def confirm(self, url, token):
+        """Step two: no file, only the token of the held one."""
+        return self.client.post(url, {"confirm": "1", "token": token})
+
+    def import_file(self, url, content, name="roster.csv"):
+        """The whole flow: one upload, then the confirmation."""
+        previewed = self.preview(url, content, name=name)
+        return self.confirm(url, previewed.context["token"])
+
     def test_player_import_requires_login(self):
         self.client.logout()
 
@@ -1376,23 +1392,93 @@ class CsvImportViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("login"), response.url)
 
-    def test_preview_writes_nothing(self):
-        response = self.client.post(
-            self.players_url,
-            {
-                "csv_file": self.upload("name,rating\nAlice,1300\n"),
-                "preview": "on",
-            },
-        )
+    def test_uploading_previews_and_writes_nothing(self):
+        response = self.preview(self.players_url, "name,rating\nAlice,1300\n")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["pending"]), 1)
+        self.assertTrue(response.context["token"])
         self.assertEqual(Player.objects.count(), 0)
 
+    def test_confirming_needs_the_token_but_not_the_file_again(self):
+        previewed = self.preview(self.players_url, "name,rating\nAlice,1300\n")
+
+        # No csv_file in this request: the point of the whole change.
+        response = self.confirm(self.players_url, previewed.context["token"])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["imported"])
+        self.assertEqual(Player.objects.count(), 1)
+
+    def test_confirming_twice_imports_once(self):
+        previewed = self.preview(self.players_url, "name,rating\nAlice,1300\n")
+        token = previewed.context["token"]
+        self.confirm(self.players_url, token)
+
+        # A refresh or a second click on the same button. The token was
+        # consumed by the first confirmation, so there is nothing to redo.
+        response = self.confirm(self.players_url, token)
+
+        self.assertTrue(response.context["expired"])
+        self.assertEqual(Player.objects.count(), 1)
+
+    def test_an_unknown_token_writes_nothing(self):
+        response = self.confirm(self.players_url, "not-a-real-token")
+
+        self.assertTrue(response.context["expired"])
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_discarding_a_preview_forgets_the_file(self):
+        previewed = self.preview(self.players_url, "name,rating\nAlice,1300\n")
+        token = previewed.context["token"]
+
+        discarded = self.client.post(self.players_url, {"discard": "1"})
+        response = self.confirm(self.players_url, token)
+
+        self.assertRedirects(discarded, self.players_url)
+        self.assertTrue(response.context["expired"])
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_a_roster_token_cannot_be_confirmed_by_the_match_importer(self):
+        previewed = self.preview(self.players_url, "name,rating\nAlice,1300\n")
+
+        response = self.confirm(
+            self.matches_url, previewed.context["token"]
+        )
+
+        self.assertTrue(response.context["expired"])
+        self.assertEqual(Player.objects.count(), 0)
+
+    def test_the_confirmation_re_reads_the_database(self):
+        previewed = self.preview(
+            self.players_url, "name,rating\nAlice,1300\nBen,1250\n"
+        )
+        self.assertEqual(len(previewed.context["pending"]), 2)
+        # Somebody adds Alice by hand between the preview and its
+        # confirmation. The rows are validated again, so she is reported as
+        # skipped rather than written twice.
+        Player.objects.create(name="alice", rating=1200, initial_rating=1200)
+
+        response = self.confirm(self.players_url, previewed.context["token"])
+
+        self.assertEqual(len(response.context["created"]), 1)
+        skipped = response.context["skipped"]
+        self.assertEqual(len(skipped), 1)
+        self.assertIn("already in the database", skipped[0][1])
+        self.assertEqual(Player.objects.count(), 2)
+
+    def test_a_file_with_no_importable_row_is_not_held(self):
+        Player.objects.create(name="Alice", rating=1200, initial_rating=1200)
+
+        response = self.preview(self.players_url, "name,rating\nAlice,1300\n")
+
+        self.assertEqual(response.context["pending"], [])
+        self.assertEqual(response.context["token"], "")
+        self.assertEqual(len(response.context["skipped"]), 1)
+
     def test_import_creates_players(self):
-        response = self.client.post(
-            self.players_url,
-            {"csv_file": self.upload("name,rating\nAlice,1300\nBen,\n")},
+        response = self.import_file(
+            self.players_url, "name,rating\nAlice,1300\nBen,\n"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1407,9 +1493,8 @@ class CsvImportViewTests(TestCase):
     def test_skipped_rows_are_reported_and_the_rest_still_imports(self):
         Player.objects.create(name="alice", rating=1200, initial_rating=1200)
 
-        response = self.client.post(
-            self.players_url,
-            {"csv_file": self.upload("name,rating\nAlice,1300\nBen,1250\n")},
+        response = self.import_file(
+            self.players_url, "name,rating\nAlice,1300\nBen,1250\n"
         )
 
         self.assertEqual(Player.objects.count(), 2)
@@ -1454,9 +1539,8 @@ class CsvImportViewTests(TestCase):
             "Ben,Alice,11,9,2026-08-19 19:30\n"
         )
 
-        response = self.client.post(
-            self.matches_url,
-            {"csv_file": self.upload(content, name="matches.csv")},
+        response = self.import_file(
+            self.matches_url, content, name="matches.csv"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1486,9 +1570,8 @@ class CsvImportViewTests(TestCase):
             "Alice,Ben,11,7,2026-08-20 19:30\n"
         )
 
-        response = self.client.post(
-            self.matches_url,
-            {"csv_file": self.upload(content, name="matches.csv")},
+        response = self.import_file(
+            self.matches_url, content, name="matches.csv"
         )
 
         # Only the last row survives. Every rule that the database would
@@ -1507,15 +1590,11 @@ class CsvImportViewTests(TestCase):
         self.add_two_players()
         self.client.cookies["tz"] = "America/Sao_Paulo"
 
-        self.client.post(
+        self.import_file(
             self.matches_url,
-            {
-                "csv_file": self.upload(
-                    "player1,player2,score1,score2,date\n"
-                    "Alice,Ben,11,7,2026-08-20 19:30\n",
-                    name="matches.csv",
-                )
-            },
+            "player1,player2,score1,score2,date\n"
+            "Alice,Ben,11,7,2026-08-20 19:30\n",
+            name="matches.csv",
         )
 
         # 19:30 in Sao Paulo (UTC-3) is 22:30 UTC. Storage is UTC either

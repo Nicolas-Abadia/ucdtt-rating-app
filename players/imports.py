@@ -16,6 +16,7 @@ chronological order.
 """
 
 import csv
+import io
 from datetime import datetime, time
 
 from django.db import transaction
@@ -92,6 +93,32 @@ def read_file(path, required_columns):
             return read_rows(fh, required_columns, path)
     except FileNotFoundError:
         raise CsvImportError(f"No such file: {path}")
+
+
+def read_upload_text(upload, label):
+    """
+    Decodes an uploaded file to text, or raises CsvImportError.
+
+    The upload views decode up front rather than streaming, because the same
+    text is parsed twice: once to preview the file and once to import it
+    after the preview is confirmed. Holding the text is what lets the file
+    be uploaded a single time.
+    """
+    try:
+        return upload.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise CsvImportError(f"{label} is not valid UTF-8 text.")
+
+
+def rows_from_text(text, required_columns, label):
+    """
+    Parses CSV text that is already in memory and returns its rows.
+
+    newline="" leaves the line endings to the csv module, exactly as when
+    reading a file from disk, so a file that imports from the command line
+    parses identically here.
+    """
+    return read_rows(io.StringIO(text, newline=""), required_columns, label)
 
 
 def build_players(rows):

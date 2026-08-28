@@ -1,5 +1,6 @@
 # UCDTT Rating App v1 (Under Development)
 
+[![CI](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![Django](https://img.shields.io/badge/django-6.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)

@@ -5,6 +5,14 @@ from players.models import Player, Match, RatingHistory
 
 
 def score_from_match(player_score, opponent_score):
+    """
+    Converts a game score into an Elo score: 1 for a win, 0 for a loss.
+
+    The equal case returns 0.5, Elo's value for a draw, but no stored match
+    can reach it: a tie is rejected by MatchForm, by the CSV importers, and
+    by the match_scores_not_tied constraint. It stays as a defined result
+    rather than an exception raised on an unreachable path.
+    """
     if player_score > opponent_score:
         return 1
     if player_score < opponent_score:
@@ -84,13 +92,10 @@ def recompute_all_ratings():
     `recompute_ratings` command after a bulk import that bypassed save().
 
     The replay happens in memory. Ratings live in a dict and only the final
-    value per player is written, which is what keeps this cheap: a fixed
-    handful of queries instead of roughly six per match. It also removes the
-    reason the match query couldn't be optimised before -- the loop used to
-    read each player's freshly written rating back out of the database, so
-    any upfront JOIN handed later iterations a stale snapshot and silently
-    broke the replay. Nothing is read back now, and players are never
-    reached through match.player1 / match.player2 at all, only by id.
+    value per player is written, which keeps the cost at a fixed handful of
+    queries rather than roughly six per match. Nothing is read back inside
+    the loop, and players are reached by id rather than through
+    match.player1 or match.player2.
 
     This is deliberately a full replay rather than a partial one starting at
     the affected date. Ratings here are derived from immutable inputs only

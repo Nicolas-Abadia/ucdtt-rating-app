@@ -4,10 +4,10 @@ from django.db import models, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-# Create your models here.
-
 
 class Player(models.Model):
+    """A club member, their current rating, and the rating they started from."""
+
     name = models.CharField(max_length=200)
     # Stored unrounded so sub-point changes accumulate; see
     # ratings.elo.rating_update. initial_rating stays an integer because it
@@ -37,6 +37,13 @@ class Player(models.Model):
         return self.name
 
 class Match(models.Model):
+    """
+    One completed match between two players.
+
+    Writing or deleting a match is what moves ratings; see save() and
+    delete().
+    """
+
     player1 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p1")
     player2 = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="matches_as_p2")
     score1 = models.IntegerField(validators=[MinValueValidator(0)])
@@ -72,7 +79,7 @@ class Match(models.Model):
         # it depends on now() and a CheckConstraint has to be a fixed
         # expression over the row's own columns.
         if self.date is not None and self.date > timezone.now():
-            raise ValidationError({"date": "Match date cannot be in the future."}) 
+            raise ValidationError({"date": "Match date cannot be in the future."})
 
     def save(self, *args, **kwargs):
         """
@@ -146,6 +153,13 @@ class Match(models.Model):
         return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"
 
 class RatingHistory(models.Model):
+    """
+    One player's rating as of one match.
+
+    Derived data: recompute_all_ratings() deletes and rebuilds every row
+    from the players' initial ratings and the match records.
+    """
+
     player = models.ForeignKey(Player, on_delete=models.PROTECT, related_name="rating_history")
     # CASCADE, not PROTECT: history rows are derived data that
     # recompute_all_ratings() rebuilds from the matches. PROTECT here made a

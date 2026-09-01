@@ -84,9 +84,8 @@ def read_file(path, required_columns):
     """
     Opens a CSV on disk and returns its rows.
 
-    Used by the management commands. The upload views wrap the request's
-    file object in a TextIOWrapper and call read_rows directly, since an
-    upload has no path.
+    Used by the management commands. An upload has no path, so the views
+    decode it with read_upload_text and parse it with rows_from_text.
     """
     try:
         with open(path, newline="", encoding="utf-8-sig") as fh:

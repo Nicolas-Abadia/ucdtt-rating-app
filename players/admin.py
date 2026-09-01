@@ -4,13 +4,19 @@ from ratings.services import recompute_all_ratings
 from .forms import MatchForm
 from .models import Player, Match, RatingHistory
 
-# Register your models here.
 
 class RatingHistoryInline(admin.TabularInline):
+    """
+    A player's rating history, read only.
+
+    The rows are derived: recompute_all_ratings() rebuilds them from the
+    matches, so anything edited here would be overwritten.
+    """
+
     model = RatingHistory
     readonly_fields = ("rating", "match", "player", "timestamp")
-    extra = 0  
-    can_delete = False 
+    extra = 0
+    can_delete = False
     def has_add_permission(self, request, obj=None):
         return False
 

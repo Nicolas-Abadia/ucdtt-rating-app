@@ -6,6 +6,13 @@ from .models import Match, Player
 
 
 class OfficerSignUpForm(UserCreationForm):
+    """
+    Creates an officer account.
+
+    Django's UserCreationForm, narrowed to the username and the two password
+    fields, so account creation keeps the configured password validators.
+    """
+
     class Meta:
         model = User
         fields = ["username", "password1", "password2"]
@@ -31,6 +38,13 @@ class PlayerForm(forms.ModelForm):
 
 
 class MatchForm(forms.ModelForm):
+    """
+    Logging a match, correcting one, and the admin's match form.
+
+    date is declared explicitly to get a datetime-local picker and to accept
+    the browser's format alongside Django's own.
+    """
+
     date = forms.DateTimeField(
         widget=forms.DateTimeInput(
             attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
@@ -106,5 +120,3 @@ class UsernameChangeForm(forms.ModelForm):
         help_texts = {
             "username": "Used to sign in. Letters, digits and @ . + - _ only.",
         }
-
-    

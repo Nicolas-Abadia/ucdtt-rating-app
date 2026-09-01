@@ -7,15 +7,9 @@
     <meta name="color-scheme" content="light dark">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
-      /* Pico lays a nav out as one non-wrapping flex row, which is what made
-         "Logged in as ..." collide with the links on a narrow window. Two
-         separate fixes, on purpose:
-
-         1. Allow the row to wrap. On anything wider than a phone the links
-            stay on one line and the account dropdown drops to a second line
-            instead of overlapping when width runs out.
-         2. Below 480px, phone territory, collapse the nav behind a hamburger,
-            since even a wrapped two-line nav eats a phone screen. */
+      /* Pico lays a nav out as one non-wrapping flex row, so "Logged in as
+         ..." collided with the links on a narrow window. The row is allowed
+         to wrap, and below 480px the nav collapses behind a hamburger. */
       nav { flex-wrap: wrap; row-gap: 0.25rem; }
       #nav-toggle-label { display: none; }
       #nav-links {
@@ -73,13 +67,11 @@
         }
       }
 
-      /* Toasts. Pico v2 ships no toast, alert or notification component
-         (accordion, card, dropdown, group, loading, modal, nav, progress,
-         tooltip is the whole list), so this is hand-rolled out of Pico's
-         own variables, which keeps it correct in both color schemes.
-
-         Fixed rather than in the flow: a message that pushed the page
-         content down and then vanished would make the whole page jump. */
+      /* Toasts. Pico v2 ships no toast or alert component, so this is
+         hand-rolled out of Pico's own variables, which keeps it correct in
+         both color schemes. Fixed rather than in the flow: a message that
+         pushed the page content down and then vanished would make the whole
+         page jump. */
       #messages {
         position: fixed;
         top: 1rem;

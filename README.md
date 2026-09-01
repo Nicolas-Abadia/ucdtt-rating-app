@@ -11,6 +11,14 @@ UC Davis Table Tennis Club internal rating system.
 
 > Hosted on Render's free tier, which spins the service down after roughly 15 minutes of inactivity. The first request after a quiet period takes about 50 seconds while the service wakes up. Everything after that is fast.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v1/leaderboard-screenshot.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/v1/leaderboard-light-screenshot.png">
+  <img alt="Leaderboard Screenshot" src="docs/screenshots/v1/leaderboard-screenshot.png">
+</picture>
+
+[Screenshots of every page](docs/screenshots/v1/README.md)
+
 ## What it does
 
 - Tracks players and their ratings.
@@ -200,6 +208,7 @@ Setting `DJANGO_DEBUG=False` also switches on HTTPS redirects, secure cookies, H
 - `config/` — Django settings and URL routing
 - `players/` — Players, matches, rating history, views, and management commands
 - `ratings/` — Pure Elo math and rating service layer
+- `docs/` — Screenshots of the deployed app
 
 ## License
 

@@ -20,13 +20,10 @@ from .forms import (
     UsernameChangeForm,
 )
 
-# Create your views here.
-
 
 class PlayerIndexView(generic.ListView):
-    """
-        Return a list of all players registered in the system ordered by rating.
-    """
+    """The leaderboard: every player, highest rating first."""
+
     model = Player
     ordering = "-rating"
     template_name = "players/index.html"
@@ -34,9 +31,8 @@ class PlayerIndexView(generic.ListView):
 
 
 class PlayerDetailView(generic.DetailView):
-    """
-        Shows the detailed information of a player.
-    """
+    """One player's rating and registration date, with officer controls."""
+
     model = Player
     template_name = "players/detail.html"
     context_object_name = "player"
@@ -219,9 +215,8 @@ class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
             return redirect("players:detail", pk=self.object.pk)
 
 class MatchListView(generic.ListView):
-    """
-        Return list of all matches in record
-    """
+    """Every recorded match, most recent first."""
+
     model = Match
     ordering = "-date"
     template_name = "players/match_list.html"
@@ -499,8 +494,8 @@ class ImportMatchesView(CsvImportView):
     notes = (
         "player1 and player2 must already be on the roster; a name that is "
         "not there is skipped rather than created. A date without a UTC "
-        "offset is read in the timezone named in the user's timezone. File does not need to be in "
-        "date order."
+        "offset is read in your own timezone. The file does not need to be "
+        "in date order."
     )
 
     def build(self, rows):

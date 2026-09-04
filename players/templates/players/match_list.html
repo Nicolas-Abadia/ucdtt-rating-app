@@ -10,12 +10,30 @@
     {% endif %}
   </div>
   <hr>
+  {# Two one-field forms rather than one two-field form: without a submit #}
+  {# button a form only submits on Enter when it has a single field. The #}
+  {# hidden input in each carries the other filter so it is not dropped. #}
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start;">
+    <form method="get" action="{% url "players:matches" %}">
+      <input type="search" name="q" value="{{ search_query }}" placeholder="Search by player name" enterkeyhint="search">
+      <input type="hidden" name="date" value="{{ date_filter }}">
+    </form>
+    <form method="get" action="{% url "players:matches" %}">
+      <input type="date" name="date" value="{{ date_filter }}" aria-label="Filter by date" enterkeyhint="search">
+      <input type="hidden" name="q" value="{{ search_query }}">
+    </form>
+    {% if search_query or date_filter %}
+      <a href="{% url "players:matches" %}">Clear filters</a>
+    {% endif %}
+  </div>
   <ul>
     {% for match in match_list %}
       {# Officer controls live on the match detail page, not on every row. #}
       <li>
         <a href="{% url "players:match_detail" match.id %}">{{ match.player1 }} vs {{ match.player2 }} {{ match.score1 }}-{{ match.score2 }} on {{ match.date }}</a>
       </li>
+    {% empty %}
+      <li>No matches found.</li>
     {% endfor %}
   </ul>
 {% endblock content %}

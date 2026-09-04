@@ -1782,3 +1782,136 @@ class PlayerProfileFieldsTests(TestCase):
         response = self.client.get(reverse("players:detail", args=[player.pk]))
         self.assertNotContains(response, "Style:")
         self.assertNotContains(response, "Grip:")
+
+
+class SearchTests(TestCase):
+    """?q= filters the leaderboard and the match record."""
+
+    def setUp(self):
+        self.ma_long = Player.objects.create(name="Ma Long", rating=1600)
+        self.xu_xin = Player.objects.create(name="Xu Xin", rating=1500)
+        self.fan = Player.objects.create(name="Fan Zhendong", rating=1400)
+
+    def test_leaderboard_filters_by_name(self):
+        response = self.client.get(reverse("players:index"), {"q": "xu"})
+        self.assertEqual(list(response.context["player_list"]), [self.xu_xin])
+
+    def test_leaderboard_filters_by_id(self):
+        response = self.client.get(
+            reverse("players:index"), {"q": str(self.fan.pk)}
+        )
+        self.assertEqual(list(response.context["player_list"]), [self.fan])
+
+    def test_leaderboard_search_ignores_capitalisation(self):
+        response = self.client.get(reverse("players:index"), {"q": "MA"})
+        self.assertIn(self.ma_long, response.context["player_list"])
+
+    def test_leaderboard_keeps_rating_order_when_filtered(self):
+        response = self.client.get(reverse("players:index"), {"q": "a"})
+        self.assertEqual(
+            list(response.context["player_list"]),
+            [self.ma_long, self.fan],
+        )
+
+    def test_leaderboard_without_query_lists_everyone(self):
+        response = self.client.get(reverse("players:index"))
+        self.assertEqual(len(response.context["player_list"]), 3)
+
+    def test_search_query_is_kept_for_the_template(self):
+        response = self.client.get(reverse("players:index"), {"q": "ma"})
+        self.assertEqual(response.context["search_query"], "ma")
+
+    def test_match_list_filters_by_either_players_name(self):
+        match = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=timezone.now(),
+        )
+        response = self.client.get(reverse("players:matches"), {"q": "zhendong"})
+        self.assertNotIn(match, response.context["match_list"])
+        response = self.client.get(reverse("players:matches"), {"q": "xu"})
+        self.assertIn(match, response.context["match_list"])
+
+    def test_match_list_filters_by_date(self):
+        on_the_20th = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=datetime.datetime(2026, 8, 20, 12, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        on_the_21st = Match.objects.create(
+            player1=self.fan,
+            player2=self.ma_long,
+            score1=11,
+            score2=9,
+            date=datetime.datetime(2026, 8, 21, 12, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-20"}
+        )
+        self.assertIn(on_the_20th, response.context["match_list"])
+        self.assertNotIn(on_the_21st, response.context["match_list"])
+
+    def test_an_invalid_date_filter_is_ignored(self):
+        Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=datetime.datetime(2026, 8, 20, 12, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        response = self.client.get(
+            reverse("players:matches"), {"date": "not-a-date"}
+        )
+        self.assertEqual(len(response.context["match_list"]), 1)
+
+    def test_date_and_name_filters_compose(self):
+        with_xu = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=datetime.datetime(2026, 8, 20, 12, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        without_xu = Match.objects.create(
+            player1=self.fan,
+            player2=self.ma_long,
+            score1=11,
+            score2=9,
+            date=datetime.datetime(2026, 8, 20, 13, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-20", "q": "xu"}
+        )
+        self.assertIn(with_xu, response.context["match_list"])
+        self.assertNotIn(without_xu, response.context["match_list"])
+
+    def test_date_filter_uses_the_visitors_timezone(self):
+        # 2026-08-21 01:00 UTC is still the evening of the 20th in
+        # California, so it belongs to the 20th for a visitor carrying
+        # that cookie.
+        match = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=datetime.datetime(2026, 8, 21, 1, 0, tzinfo=ZoneInfo("UTC")),
+        )
+        self.client.cookies["tz"] = "America/Los_Angeles"
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-20"}
+        )
+        self.assertIn(match, response.context["match_list"])
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-21"}
+        )
+        self.assertNotIn(match, response.context["match_list"])
+
+    def test_date_filter_is_kept_for_the_template(self):
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-20"}
+        )
+        self.assertEqual(response.context["date_filter"], "2026-08-20")

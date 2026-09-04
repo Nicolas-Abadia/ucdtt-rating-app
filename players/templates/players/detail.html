@@ -2,7 +2,10 @@
 {% block content %}
   <h1>{{ player.name }}</h1>
   <hr>
+  <p>ID: {{ player.pk }}</p>
   <p>Rating: {{ player.display_rating }}</p>
+  {% if player.style %}<p>Style: {{ player.get_style_display }}</p>{% endif %}
+  {% if player.grip %}<p>Grip: {{ player.get_grip_display }}</p>{% endif %}
   <p>Registered on: {{ player.created_date }}</p>
   {% if user.is_authenticated %}
   <div class="grid">

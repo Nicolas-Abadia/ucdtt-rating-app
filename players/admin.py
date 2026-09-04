@@ -24,6 +24,7 @@ class PlayerAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {"fields": ["name"]}),
         ("Rating", {"fields": ["rating", "initial_rating"]}),
+        ("Profile", {"fields": ["style", "grip"]}),
         ("Created Time", {"fields": ["created_date"]}),
     ]
     # rating is derived from the matches, so it is shown but not editable.

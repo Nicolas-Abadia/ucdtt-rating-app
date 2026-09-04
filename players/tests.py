@@ -1719,3 +1719,66 @@ class ImportMatchesCommandTests(TestCase):
             call_command(
                 "import_matches", "/nonexistent/matches.csv", stdout=StringIO()
             )
+
+
+class PlayerProfileFieldsTests(TestCase):
+    """style and grip are optional profile metadata, settable from the form."""
+
+    def setUp(self):
+        self.officer = User.objects.create_user(
+            username="officer", password="testpass123"
+        )
+
+    def test_add_player_with_style_and_grip(self):
+        self.client.login(username="officer", password="testpass123")
+        self.client.post(
+            reverse("players:new"),
+            {
+                "name": "Ma Long",
+                "initial_rating": 1200,
+                "style": "offensive",
+                "grip": "shakehand",
+            },
+        )
+        player = Player.objects.get(name="Ma Long")
+        self.assertEqual(player.style, "offensive")
+        self.assertEqual(player.grip, "shakehand")
+
+    def test_style_and_grip_default_to_blank(self):
+        self.client.login(username="officer", password="testpass123")
+        self.client.post(
+            reverse("players:new"),
+            {"name": "Xu Xin", "initial_rating": 1200, "style": "", "grip": ""},
+        )
+        player = Player.objects.get(name="Xu Xin")
+        self.assertEqual(player.style, "")
+        self.assertEqual(player.grip, "")
+
+    def test_invalid_style_is_rejected(self):
+        self.client.login(username="officer", password="testpass123")
+        response = self.client.post(
+            reverse("players:new"),
+            {
+                "name": "Zhang Jike",
+                "initial_rating": 1200,
+                "style": "lefty",
+                "grip": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Player.objects.filter(name="Zhang Jike").exists())
+
+    def test_detail_page_shows_style_grip_and_id(self):
+        player = Player.objects.create(
+            name="Fan Zhendong", style="offensive", grip="shakehand"
+        )
+        response = self.client.get(reverse("players:detail", args=[player.pk]))
+        self.assertContains(response, "Offensive")
+        self.assertContains(response, "Shakehand")
+        self.assertContains(response, f"ID: {player.pk}")
+
+    def test_detail_page_hides_unset_style_and_grip(self):
+        player = Player.objects.create(name="Liu Shiwen")
+        response = self.client.get(reverse("players:detail", args=[player.pk]))
+        self.assertNotContains(response, "Style:")
+        self.assertNotContains(response, "Grip:")

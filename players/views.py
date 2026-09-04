@@ -5,8 +5,9 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.shortcuts import redirect
+from django.utils.dateparse import parse_date
 from django.views import generic
 from django.urls import reverse_lazy
 from ratings.services import recompute_all_ratings
@@ -22,12 +23,32 @@ from .forms import (
 
 
 class PlayerIndexView(generic.ListView):
-    """The leaderboard: every player, highest rating first."""
+    """The leaderboard: every player, highest rating first.
+
+    ?q= filters the board by name fragment, or by exact id when the query
+    is all digits. The same parameter serves the player picker in the
+    React client later.
+    """
 
     model = Player
     ordering = "-rating"
     template_name = "players/index.html"
     context_object_name = "player_list"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get("q", "").strip()
+        if not query:
+            return queryset
+        condition = Q(name__icontains=query)
+        if query.isdigit():
+            condition |= Q(pk=int(query))
+        return queryset.filter(condition)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = self.request.GET.get("q", "").strip()
+        return context
 
 
 class PlayerDetailView(generic.DetailView):
@@ -215,12 +236,39 @@ class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
             return redirect("players:detail", pk=self.object.pk)
 
 class MatchListView(generic.ListView):
-    """Every recorded match, most recent first."""
+    """Every recorded match, most recent first.
+
+    Two composable filters: ?q= keeps matches that involve a player whose
+    name contains the query, and ?date= keeps matches played on that
+    calendar day. The day is read in the visitor's timezone (the tz
+    cookie), so the boundary matches what the cards display. An
+    unparseable date is ignored rather than erroring on a typed URL.
+    """
 
     model = Match
     ordering = "-date"
     template_name = "players/match_list.html"
     context_object_name = "match_list"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(player1__name__icontains=query)
+                | Q(player2__name__icontains=query)
+            )
+        day = parse_date(self.request.GET.get("date", "").strip())
+        if day is not None:
+            queryset = queryset.filter(date__date=day)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = self.request.GET.get("q", "").strip()
+        day = parse_date(self.request.GET.get("date", "").strip())
+        context["date_filter"] = day.isoformat() if day else ""
+        return context
 
 class MatchDetailView(generic.DetailView):
     """

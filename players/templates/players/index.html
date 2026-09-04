@@ -11,9 +11,16 @@
   </div>
   <hr>
   <h2>Leaderboard</h2>
+  {# No submit button on purpose: a single-field form submits on Enter. #}
+  {# enterkeyhint labels the mobile keyboard's action key "search". #}
+  <form method="get" action="{% url "players:index" %}">
+    <input type="search" name="q" value="{{ search_query }}" placeholder="Search by name or id" enterkeyhint="search">
+  </form>
   <ol>
     {% for player in player_list %}
       <li>{{ player.display_rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>
+    {% empty %}
+      <li>No players found.</li>
     {% endfor %}
   </ol>
 {% endblock content %}

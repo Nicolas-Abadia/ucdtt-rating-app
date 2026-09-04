@@ -23,14 +23,15 @@ class PlayerForm(forms.ModelForm):
     Shared by AddPlayerView and EditPlayerView so the two can't drift apart
     and show different fields for the same thing.
 
-    Only initial_rating is exposed. rating is derived: every recompute
-    resets each player to initial_rating and replays the matches, so a
-    hand-set rating would be silently discarded (see EditPlayerView).
+    rating is not exposed: every recompute resets each player to
+    initial_rating and replays the matches, so a hand-set rating would be
+    silently discarded (see EditPlayerView). style and grip are plain
+    profile metadata and are safe to edit at any time.
     """
 
     class Meta:
         model = Player
-        fields = ["name", "initial_rating"]
+        fields = ["name", "initial_rating", "style", "grip"]
         labels = {"initial_rating": "Starting rating"}
         help_texts = {
             "initial_rating": "The rating this player starts from, before any matches are counted.",

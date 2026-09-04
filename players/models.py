@@ -8,12 +8,29 @@ from django.utils import timezone
 class Player(models.Model):
     """A club member, their current rating, and the rating they started from."""
 
+    class Style(models.TextChoices):
+        OFFENSIVE = "offensive", "Offensive"
+        ALL_ROUND = "all-round", "All-round"
+        DEFENSIVE = "defensive", "Defensive"
+
+    class Grip(models.TextChoices):
+        SHAKEHAND = "shakehand", "Shakehand"
+        PENHOLD = "penhold", "Penhold"
+
     name = models.CharField(max_length=200)
     # Stored unrounded so sub-point changes accumulate; see
     # ratings.elo.rating_update. initial_rating stays an integer because it
     # is typed in by an officer rather than computed.
     rating = models.FloatField(default=1200, validators=[MinValueValidator(100)])
     initial_rating = models.IntegerField(default=1200, validators=[MinValueValidator(100)])
+    # Optional profile metadata. Blank keeps them off the CSV import and
+    # lets officers fill them in later.
+    style = models.CharField(
+        max_length=20, choices=Style.choices, blank=True, default=""
+    )
+    grip = models.CharField(
+        max_length=20, choices=Grip.choices, blank=True, default=""
+    )
     created_date = models.DateTimeField("created date", auto_now_add=True)
 
     class Meta:

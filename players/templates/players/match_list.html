@@ -10,22 +10,16 @@
     {% endif %}
   </div>
   <hr>
-  {# Two one-field forms rather than one two-field form: without a submit #}
-  {# button a form only submits on Enter when it has a single field. The #}
-  {# hidden input in each carries the other filter so it is not dropped. #}
-  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start;">
-    <form method="get" action="{% url "players:matches" %}">
-      <input type="search" name="q" value="{{ search_query }}" placeholder="Search by player name" enterkeyhint="search">
-      <input type="hidden" name="date" value="{{ date_filter }}">
-    </form>
-    <form method="get" action="{% url "players:matches" %}">
-      <input type="date" name="date" value="{{ date_filter }}" aria-label="Filter by date" enterkeyhint="search">
-      <input type="hidden" name="q" value="{{ search_query }}">
-    </form>
+  {# One GET form submits both filters. Search still submits on Enter, while #}
+  {# the explicit button lets a date be applied after its picker closes. #}
+  <form method="get" action="{% url "players:matches" %}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+    <input type="search" name="q" value="{{ search_query }}" placeholder="Search by player name or id" enterkeyhint="search" style="flex: 1 1 18rem; margin-bottom: 0;">
+    <input type="date" name="date" value="{{ date_filter }}" aria-label="Filter by date" style="flex: 1 1 10rem; min-width: 0; margin-bottom: 0;">
+    <button type="submit" aria-label="Apply filters" style="width: auto; margin: 0; padding-inline: 1rem;">Apply</button>
     {% if search_query or date_filter %}
-      <a href="{% url "players:matches" %}">Clear filters</a>
+      <a href="{% url "players:matches" %}" style="white-space: nowrap;">Clear filters</a>
     {% endif %}
-  </div>
+  </form>
   <ul>
     {% for match in match_list %}
       {# Officer controls live on the match detail page, not on every row. #}

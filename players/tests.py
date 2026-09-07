@@ -1828,6 +1828,13 @@ class SearchTests(TestCase):
         response = self.client.get(reverse("players:index"), {"q": "ma"})
         self.assertEqual(response.context["search_query"], "ma")
 
+    def test_leaderboard_clear_filters_only_appears_for_a_search(self):
+        response = self.client.get(reverse("players:index"))
+        self.assertNotContains(response, "Clear filters")
+
+        response = self.client.get(reverse("players:index"), {"q": "ma"})
+        self.assertContains(response, "Clear filters")
+
     def test_match_list_filters_by_either_players_name(self):
         match = Match.objects.create(
             player1=self.ma_long,
@@ -1839,6 +1846,23 @@ class SearchTests(TestCase):
         response = self.client.get(reverse("players:matches"), {"q": "zhendong"})
         self.assertNotIn(match, response.context["match_list"])
         response = self.client.get(reverse("players:matches"), {"q": "xu"})
+        self.assertIn(match, response.context["match_list"])
+
+    def test_match_list_filters_by_either_players_id(self):
+        match = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=timezone.now(),
+        )
+        response = self.client.get(
+            reverse("players:matches"), {"q": str(self.fan.pk)}
+        )
+        self.assertNotIn(match, response.context["match_list"])
+        response = self.client.get(
+            reverse("players:matches"), {"q": str(self.xu_xin.pk)}
+        )
         self.assertIn(match, response.context["match_list"])
 
     def test_match_list_filters_by_date(self):
@@ -1922,6 +1946,22 @@ class SearchTests(TestCase):
             reverse("players:matches"), {"date": "2026-08-20"}
         )
         self.assertEqual(response.context["date_filter"], "2026-08-20")
+
+    def test_match_filter_form_has_apply_button(self):
+        response = self.client.get(reverse("players:matches"))
+        self.assertContains(response, 'aria-label="Apply filters"')
+
+    def test_match_clear_filters_appears_for_name_or_date(self):
+        response = self.client.get(reverse("players:matches"))
+        self.assertNotContains(response, "Clear filters")
+
+        response = self.client.get(reverse("players:matches"), {"q": "ma"})
+        self.assertContains(response, "Clear filters")
+
+        response = self.client.get(
+            reverse("players:matches"), {"date": "2026-08-20"}
+        )
+        self.assertContains(response, "Clear filters")
 
 
 class ApiTests(TestCase):
@@ -2013,6 +2053,16 @@ class ApiTests(TestCase):
         payload = self.client.get("/api/matches/", {"q": "zhendong"}).json()
         self.assertEqual(payload["count"], 0)
         payload = self.client.get("/api/matches/", {"q": "xu"}).json()
+        self.assertEqual(payload["count"], 1)
+
+    def test_match_list_searches_by_either_players_id(self):
+        payload = self.client.get(
+            "/api/matches/", {"q": str(self.fan.pk)}
+        ).json()
+        self.assertEqual(payload["count"], 0)
+        payload = self.client.get(
+            "/api/matches/", {"q": str(self.xu_xin.pk)}
+        ).json()
         self.assertEqual(payload["count"], 1)
 
     def test_match_list_filters_by_date(self):

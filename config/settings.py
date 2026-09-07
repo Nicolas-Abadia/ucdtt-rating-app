@@ -1,5 +1,5 @@
 """
-Django settings for the UCDTT Rating App.
+Django settings for the Table Tennis Rating App.
 
 DJANGO_SECRET_KEY, DJANGO_DEBUG, DJANGO_ALLOWED_HOSTS and DATABASE_URL all
 come from the environment, loaded from .env in local development. The

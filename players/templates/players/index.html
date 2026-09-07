@@ -1,7 +1,7 @@
 {% extends "players/base_html.html" %}
 {% block content %}
   <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-    <h1>UCDTT Club Rating App</h1>
+    <h1>Table Tennis Rating App</h1>
     {% if user.is_authenticated %}
       <div style="display: flex; gap: 0.5rem; align-items: start;">
         <form action="{% url "players:new" %}"><button type="submit">Add new player</button></form>

@@ -1,13 +1,14 @@
-# UCDTT Rating App v1 (Under Development)
+# Table Tennis Rating App v1 (Under Development)
 
 [![CI](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![Django](https://img.shields.io/badge/django-6.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-UC Davis Table Tennis Club internal rating system.
+A reusable table tennis rating system currently being developed for the **Table Tennis Club at UC Davis**.
 
-**Live app: <https://ucdtt-rating-app.onrender.com>**
+**Live app: <https://ucdtt-rating-app.onrender.com>**  
+**Browsable API: <https://ucdtt-rating-app.onrender.com/api/>**
 
 > Hosted on Render's free tier, which spins the service down after roughly 15 minutes of inactivity. The first request after a quiet period takes about 50 seconds while the service wakes up. Everything after that is fast.
 
@@ -29,10 +30,12 @@ UC Davis Table Tennis Club internal rating system.
 - Imports players and match history in bulk from CSV, from the browser or the command line.
 - Displays every date and time in the viewer's own timezone.
 - Lets a signed-in officer change their own username and password.
+- Provides a public read-only REST API for player and match data.
 
 ## Tech stack
 
 - Django 6.0.7
+- Django REST Framework 3.18
 - PostgreSQL — 16 locally via Docker, Neon in production
 - Python 3.13
 - `dj-database-url` for database configuration
@@ -76,6 +79,29 @@ UC Davis Table Tennis Club internal rating system.
 ```bash
 python manage.py test
 ```
+
+## REST API
+A public read-only API exposes player and match data as JSON. It also includes a browsable interface, so the endpoints can be explored directly in a browser without a separate frontend.
+
+| Resource | List endpoint | Detail endpoint |
+| --- | --- | --- |
+| Players | `/api/players/` | `/api/players/<id>/` |
+| Matches | `/api/matches/` | `/api/matches/<id>/` |
+
+Player lists support name or numeric ID searches with `?q=`:
+
+```text
+/api/players/?q=wang
+/api/players/?q=16
+```
+
+Match lists support calendar-day filtering with `?date=YYYY-MM-DD`:
+
+```text
+/api/matches/?date=2026-08-20
+```
+
+List responses use page-number pagination with 20 results per page. These endpoints currently expose only `GET`, `HEAD`, and `OPTIONS`. Authenticated write endpoints and token authentication are planned, but are not part of this version.
 
 ## Rating system
 

@@ -1,6 +1,6 @@
 # v1 Screenshots
 
-Every page of the v1 server-rendered Django app, captured from the live deploy at <https://ucdtt-rating-app.onrender.com>.
+Every page of the v1 server-rendered Django app and its browsable REST API.
 
 
 ## Public pages
@@ -26,6 +26,30 @@ Visible to anyone, no login required. (Features to modify data are shown only to
 ### Match details
 
 ![Match detail page showing the two players, the score, the date, and the rating change](match-details-screenshot.png "Match details")
+
+## REST API
+
+The public read-only REST API can be explored through its browsable interface or consumed as JSON.
+
+### API root
+
+![Browsable API root linking to the player and match endpoints](api-root.png "REST API root")
+
+### Player list endpoint
+
+![Browsable API player list showing paginated player data](api-player-list.png "REST API player list")
+
+### Player detail endpoint
+
+![Browsable API player detail showing one player's data and related history](api-player-instance.png "REST API player detail")
+
+### Match list endpoint
+
+![Browsable API match list showing paginated match data](api-match-list.png "REST API match list")
+
+### Match detail endpoint
+
+![Browsable API match detail showing one recorded match](api-match-instance.png "REST API match detail")
 
 ## Officer pages
 

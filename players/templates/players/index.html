@@ -11,11 +11,16 @@
   </div>
   <hr>
   <h2>Leaderboard</h2>
-  {# No submit button on purpose: a single-field form submits on Enter. #}
-  {# enterkeyhint labels the mobile keyboard's action key "search". #}
-  <form method="get" action="{% url "players:index" %}">
-    <input type="search" name="q" value="{{ search_query }}" placeholder="Search by name or id" enterkeyhint="search">
-  </form>
+  {# The single search field still submits on Enter. Clear filters only #}
+  {# appears after a query so the unfiltered leaderboard stays uncluttered. #}
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start;">
+    <form method="get" action="{% url "players:index" %}" style="flex: 1 1 18rem; margin: 0;">
+      <input type="search" name="q" value="{{ search_query }}" placeholder="Search by name or id" enterkeyhint="search" style="margin-bottom: 0;">
+    </form>
+    {% if search_query %}
+      <a href="{% url "players:index" %}" style="align-self: center; white-space: nowrap;">Clear filters</a>
+    {% endif %}
+  </div>
   <ol>
     {% for player in player_list %}
       <li>{{ player.display_rating }} | <a href="{% url "players:detail" player.id %}">{{ player.name }}</a></li>

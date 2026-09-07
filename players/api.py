@@ -53,9 +53,14 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         query = self.request.query_params.get("q", "").strip()
 
         if query:
-            queryset = queryset.filter(
-                Q(player1__name__icontains=query) | Q(player2__name__icontains=query)
+            condition = (
+                Q(player1__name__icontains=query)
+                | Q(player2__name__icontains=query)
             )
+            if query.isdigit():
+                player_id = int(query)
+                condition |= Q(player1_id=player_id) | Q(player2_id=player_id)
+            queryset = queryset.filter(condition)
 
         day = parse_date(self.request.query_params.get("date", "").strip())
 

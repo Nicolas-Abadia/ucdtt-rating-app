@@ -88,14 +88,14 @@ A public read-only API exposes player and match data as JSON. It also includes a
 | Players | `/api/players/` | `/api/players/<id>/` |
 | Matches | `/api/matches/` | `/api/matches/<id>/` |
 
-Player lists support name or numeric ID searches with `?q=`:
+Player and match lists support player-name fragments or exact numeric player IDs with `?q=`:
 
 ```text
 /api/players/?q=wang
-/api/players/?q=16
+/api/matches/?q=16
 ```
 
-Match lists support calendar-day filtering with `?date=YYYY-MM-DD`:
+Match lists also support calendar-day filtering with `?date=YYYY-MM-DD`:
 
 ```text
 /api/matches/?date=2026-08-20

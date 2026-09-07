@@ -245,10 +245,11 @@ class MatchListView(generic.ListView):
     """Every recorded match, most recent first.
 
     Two composable filters: ?q= keeps matches that involve a player whose
-    name contains the query, and ?date= keeps matches played on that
-    calendar day. The day is read in the visitor's timezone (the tz
-    cookie), so the boundary matches what the cards display. An
-    unparseable date is ignored rather than erroring on a typed URL.
+    name contains the query, or whose id exactly matches an all-digit query.
+    ?date= keeps matches played on that calendar day. The day is read in the
+    visitor's timezone (the tz cookie), so the boundary matches what the
+    cards display. An unparseable date is ignored rather than erroring on a
+    typed URL.
     """
 
     model = Match
@@ -260,10 +261,14 @@ class MatchListView(generic.ListView):
         queryset = super().get_queryset()
         query = self.request.GET.get("q", "").strip()
         if query:
-            queryset = queryset.filter(
+            condition = (
                 Q(player1__name__icontains=query)
                 | Q(player2__name__icontains=query)
             )
+            if query.isdigit():
+                player_id = int(query)
+                condition |= Q(player1_id=player_id) | Q(player2_id=player_id)
+            queryset = queryset.filter(condition)
         day = parse_date(self.request.GET.get("date", "").strip())
         if day is not None:
             queryset = queryset.filter(date__date=day)

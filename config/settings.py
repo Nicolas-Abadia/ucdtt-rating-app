@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'players'
+    'players',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,13 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Django REST Framework. Every list endpoint returns a page envelope,
+# {"count", "next", "previous", "results"}, so API clients read .results.
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+}
 
 # Auth
 # https://docs.djangoproject.com/en/6.0/topics/auth/default/

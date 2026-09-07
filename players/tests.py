@@ -11,6 +11,7 @@ from io import StringIO
 import os
 import tempfile
 from zoneinfo import ZoneInfo
+from rest_framework.test import APIClient
 
 # Create your tests here.
 
@@ -1915,3 +1916,101 @@ class SearchTests(TestCase):
             reverse("players:matches"), {"date": "2026-08-20"}
         )
         self.assertEqual(response.context["date_filter"], "2026-08-20")
+
+
+class ApiTests(TestCase):
+    """
+    The read-only API mirrors the HTML views: same data, same filters.
+
+    Covers the router wiring, the pagination envelope, the list/detail
+    serializer split, and the ?q= and ?date= filters. The HTML suite never
+    exercises this layer, so these are the regression guards for it.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.ma_long = Player.objects.create(name="Ma Long", rating=1600)
+        self.xu_xin = Player.objects.create(name="Xu Xin", rating=1500)
+        self.fan = Player.objects.create(name="Fan Zhendong", rating=1400)
+        self.match = Match.objects.create(
+            player1=self.ma_long,
+            player2=self.xu_xin,
+            score1=11,
+            score2=7,
+            date=datetime.datetime(2026, 8, 20, 12, 0, tzinfo=ZoneInfo("UTC")),
+        )
+
+    def test_api_root_lists_the_endpoints(self):
+        response = self.client.get("/api/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"players", "matches"})
+
+    def test_player_list_is_paginated_and_ordered(self):
+        response = self.client.get("/api/players/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(set(payload), {"count", "next", "previous", "results"})
+        self.assertEqual(payload["count"], 3)
+        self.assertEqual(
+            [row["name"] for row in payload["results"]],
+            ["Ma Long", "Xu Xin", "Fan Zhendong"],
+        )
+
+    def test_player_list_is_the_light_serializer(self):
+        row = self.client.get("/api/players/").json()["results"][0]
+        self.assertIn("display_rating", row)
+        self.assertNotIn("matches", row)
+        self.assertNotIn("rating_history", row)
+
+    def test_player_list_searches_by_name(self):
+        payload = self.client.get("/api/players/", {"q": "xu"}).json()
+        self.assertEqual(
+            [row["name"] for row in payload["results"]], ["Xu Xin"]
+        )
+
+    def test_player_list_searches_by_id(self):
+        payload = self.client.get(
+            "/api/players/", {"q": str(self.fan.pk)}
+        ).json()
+        self.assertEqual(
+            [row["id"] for row in payload["results"]], [self.fan.pk]
+        )
+
+    def test_player_detail_carries_matches_and_history(self):
+        data = self.client.get(f"/api/players/{self.ma_long.pk}/").json()
+        self.assertEqual(data["name"], "Ma Long")
+        self.assertTrue(
+            data["url"].endswith(f"/api/players/{self.ma_long.pk}/")
+        )
+        self.assertEqual(len(data["matches"]), 1)
+        self.assertEqual(data["matches"][0]["score1"], 11)
+        self.assertEqual(len(data["rating_history"]), 1)
+
+    def test_match_payload_carries_id_url_and_rating_changes(self):
+        row = self.client.get("/api/matches/").json()["results"][0]
+        self.assertEqual(row["id"], self.match.pk)
+        self.assertTrue(row["url"].endswith(f"/api/matches/{self.match.pk}/"))
+        self.assertEqual(row["score1"], 11)
+        self.assertEqual(len(row["rating_changes"]), 2)
+
+    def test_match_list_searches_by_either_players_name(self):
+        payload = self.client.get("/api/matches/", {"q": "zhendong"}).json()
+        self.assertEqual(payload["count"], 0)
+        payload = self.client.get("/api/matches/", {"q": "xu"}).json()
+        self.assertEqual(payload["count"], 1)
+
+    def test_match_list_filters_by_date(self):
+        payload = self.client.get(
+            "/api/matches/", {"date": "2026-08-20"}
+        ).json()
+        self.assertEqual(payload["count"], 1)
+        payload = self.client.get(
+            "/api/matches/", {"date": "2026-08-21"}
+        ).json()
+        self.assertEqual(payload["count"], 0)
+
+    def test_writes_are_not_accepted(self):
+        response = self.client.post(
+            "/api/players/", {"name": "Nobody"}, format="json"
+        )
+        self.assertEqual(response.status_code, 405)

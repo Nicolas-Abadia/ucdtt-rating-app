@@ -1,5 +1,6 @@
 asgiref==3.12.1
 Django==6.0.7
+djangorestframework==3.18.0
 sqlparse==0.5.5
 psycopg[binary]>=3.0,<4.0
 dj-database-url>=2.0,<3.0

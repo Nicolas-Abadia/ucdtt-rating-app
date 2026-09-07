@@ -58,6 +58,7 @@ class PlayerDetailView(generic.DetailView):
     template_name = "players/detail.html"
     context_object_name = "player"
 
+
 class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
     """
         Create a new officer account. Requires an existing officer to be
@@ -81,6 +82,7 @@ class OfficerSignUpView(LoginRequiredMixin, generic.CreateView):
             "It can sign in now with the password just set.",
         )
         return response
+
 
 class AccountView(LoginRequiredMixin, generic.TemplateView):
     """
@@ -167,6 +169,7 @@ class AccountView(LoginRequiredMixin, generic.TemplateView):
             messages.info(request, "No changes were submitted.")
         return redirect("players:account")
 
+
 class AddPlayerView(LoginRequiredMixin, generic.CreateView):
     """
         Adds a player to the database.
@@ -185,6 +188,7 @@ class AddPlayerView(LoginRequiredMixin, generic.CreateView):
         # followed by an update.
         form.instance.rating = form.instance.initial_rating
         return super().form_valid(form)
+
 
 class EditPlayerView(LoginRequiredMixin, generic.UpdateView):
     """
@@ -210,6 +214,7 @@ class EditPlayerView(LoginRequiredMixin, generic.UpdateView):
             recompute_all_ratings()
         return response
 
+
 class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
     """
         Delete one existing player in the database.
@@ -234,6 +239,7 @@ class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
                 "ratings were computed from.",
             )
             return redirect("players:detail", pk=self.object.pk)
+
 
 class MatchListView(generic.ListView):
     """Every recorded match, most recent first.
@@ -270,6 +276,7 @@ class MatchListView(generic.ListView):
         context["date_filter"] = day.isoformat() if day else ""
         return context
 
+
 class MatchDetailView(generic.DetailView):
     """
         Shows one recorded match, and for officers the edit and delete
@@ -284,6 +291,7 @@ class MatchDetailView(generic.DetailView):
     template_name = "players/match_detail.html"
     context_object_name = "match"
 
+
 class LogMatchView(LoginRequiredMixin, generic.CreateView):
     """
         Add new match. Rating updates happen in Match.save() (see
@@ -294,6 +302,7 @@ class LogMatchView(LoginRequiredMixin, generic.CreateView):
     form_class = MatchForm
     template_name = "players/match_form.html"
     success_url = reverse_lazy("players:matches")
+
 
 class EditMatchView(LoginRequiredMixin, generic.UpdateView):
     """
@@ -308,6 +317,7 @@ class EditMatchView(LoginRequiredMixin, generic.UpdateView):
     template_name = "players/match_form.html"
     success_url = reverse_lazy("players:matches")
 
+
 class DeleteMatchView(LoginRequiredMixin, generic.DeleteView):
     """
         Delete a match. Ratings are replayed from the remaining matches in
@@ -318,6 +328,7 @@ class DeleteMatchView(LoginRequiredMixin, generic.DeleteView):
     model = Match
     template_name = "players/match_confirm_delete.html"
     success_url = reverse_lazy("players:matches")
+
 
 class CsvImportView(LoginRequiredMixin, generic.FormView):
     """
@@ -500,6 +511,7 @@ class CsvImportView(LoginRequiredMixin, generic.FormView):
             )
         )
 
+
 class ImportPlayersView(CsvImportView):
     """
         Bulk roster upload. Officers already had this as a management
@@ -521,6 +533,7 @@ class ImportPlayersView(CsvImportView):
 
     def write(self, to_create):
         imports.save_players(to_create)
+
 
 class ImportMatchesView(CsvImportView):
     """

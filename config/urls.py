@@ -8,8 +8,10 @@ rest of django.contrib.auth.urls, then the admin.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from players.api import router
 
 urlpatterns = [
+    path("api/", include(router.urls)),
     path("", include("players.urls")),
     # django.contrib.auth.urls routes password_change and its done page to
     # Django's own views. The account page covers both the username and the

@@ -6,7 +6,10 @@ from django.utils import timezone
 
 
 class Player(models.Model):
-    """A club member, their current rating, and the rating they started from."""
+    """
+    A club member, their style and grip (optional),
+    their current rating, and the rating they started from.
+    """
 
     class Style(models.TextChoices):
         OFFENSIVE = "offensive", "Offensive"
@@ -36,7 +39,7 @@ class Player(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                Lower("name"),
+    Lower("name"),
                 name="unique_player_name_ci",
                 violation_error_message="A player with this name already exists.",
             )
@@ -52,6 +55,7 @@ class Player(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Match(models.Model):
     """
@@ -168,6 +172,7 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.player1} vs {self.player2} ({self.score1}-{self.score2}) on {self.date}"
+
 
 class RatingHistory(models.Model):
     """

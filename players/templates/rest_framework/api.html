@@ -1,0 +1,79 @@
+{% extends "rest_framework/base.html" %}
+{% load static %}
+
+{# Keep DRF's renderer and request machinery, but give the browsable API the #}
+{# same Pico-based visual shell as the server-rendered application. #}
+
+{% block meta %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="NONE,NOARCHIVE">
+  <meta name="description" content="Browsable API for the Table Tennis Rating App">
+{% endblock %}
+
+{% block title %}{% if name %}{{ name }} | {% endif %}Table Tennis Rating API{% endblock %}
+
+{% block style %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="{% static 'rest_framework/css/prettify.css' %}">
+  {% if code_style %}<style>{{ code_style }}</style>{% endif %}
+  <link rel="stylesheet" href="{% static 'players/api.css' %}">
+{% endblock %}
+
+{% block bodyclass %}api-browser{% endblock %}
+
+{% block navbar %}
+  <header class="container api-header">
+    <nav aria-label="Primary navigation">
+      <ul class="api-brand-list">
+        <li>
+          <strong><a class="api-brand" href="{% url 'api-root' %}">Table Tennis Rating API</a></strong>
+        </li>
+      </ul>
+      <ul class="api-primary-links">
+        <li><a href="{% url 'player-list' %}">Players</a></li>
+        <li><a href="{% url 'match-list' %}">Matches</a></li>
+        <li><a href="{% url 'players:index' %}">Web app</a></li>
+        {% if user.is_authenticated %}
+          <li><small class="api-session">Logged in as {{ user.username }}</small></li>
+        {% else %}
+          <li><a href="{% url 'login' %}?next={{ request.path|urlencode }}">Officer login</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
+{% endblock %}
+
+{% block breadcrumbs %}
+  <nav class="api-breadcrumbs" aria-label="Breadcrumb">
+    <ul>
+      {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
+        <li>
+          {% if forloop.last %}
+            <span aria-current="page">{{ breadcrumb_name }}</span>
+          {% else %}
+            <a href="{{ breadcrumb_url }}">{{ breadcrumb_name }}</a>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li><span aria-current="page">API</span></li>
+      {% endfor %}
+    </ul>
+  </nav>
+{% endblock %}
+
+{% block request_forms %}
+  <div class="api-actions">
+    {% if 'GET' in allowed_methods %}
+      <a href="{{ request.get_full_path }}" role="button" rel="nofollow"
+         title="Make a GET request on the {{ name }} resource">GET</a>
+    {% endif %}
+    {% if options_form %}
+      <form class="button-form" action="{{ request.get_full_path }}" data-method="OPTIONS">
+        <button type="submit" class="secondary"
+                title="Make an OPTIONS request on the {{ name }} resource">OPTIONS</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

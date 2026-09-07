@@ -36,6 +36,12 @@ class PlayerIndexViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context["player_list"], [])
 
+    def test_site_uses_generic_product_branding(self):
+        response = self.client.get(reverse("players:index"))
+        self.assertContains(response, "Table Tennis Rating App")
+        self.assertNotContains(response, "UCDTT")
+        self.assertNotContains(response, "UC Davis")
+
 class PlayerDetailViewTests(TestCase):
     def test_detail(self):
         """
@@ -1944,6 +1950,16 @@ class ApiTests(TestCase):
         response = self.client.get("/api/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(set(response.json()), {"players", "matches"})
+
+    def test_browsable_api_uses_the_project_pico_theme(self):
+        response = self.client.get("/api/", HTTP_ACCEPT="text/html")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "@picocss/pico@2/css/pico.min.css")
+        self.assertContains(response, "players/api.css")
+        self.assertContains(response, "Table Tennis Rating API")
+        self.assertNotContains(response, "UCDTT")
+        self.assertNotContains(response, "UC Davis")
+        self.assertNotContains(response, "rest_framework/css/bootstrap.min.css")
 
     def test_player_list_is_paginated_and_ordered(self):
         response = self.client.get("/api/players/")

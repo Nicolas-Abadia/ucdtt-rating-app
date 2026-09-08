@@ -13,6 +13,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import dj_database_url
+from datetime import timedelta
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +46,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'players',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
@@ -53,6 +57,7 @@ MIDDLEWARE = [
     # Activates the viewer's own timezone for the request. Must run before any
     # view renders or parses a datetime.
     'players.middleware.TimezoneMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -153,6 +158,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ]
 }
 
 # Auth
@@ -161,6 +170,14 @@ REST_FRAMEWORK = {
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "players:index"
 LOGOUT_REDIRECT_URL = "players:index"
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
+CORS_ALLOWED_ORIGINS = []
 
 # Production security hardening.
 # These are conditional on DEBUG so local development over plain HTTP is

@@ -1,6 +1,8 @@
 asgiref==3.12.1
 Django==6.0.7
+django-cors-headers==4.9.0
 djangorestframework==3.18.0
+djangorestframework_simplejwt==5.5.1
 sqlparse==0.5.5
 psycopg[binary]>=3.0,<4.0
 dj-database-url>=2.0,<3.0

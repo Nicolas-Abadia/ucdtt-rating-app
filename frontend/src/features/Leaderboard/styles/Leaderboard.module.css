@@ -1,0 +1,5 @@
+/* Deprecated on 2026-09-08: split into colocated modules next to each
+   component (components/Leaderboard.module.css, components/PlayerRow.module.css)
+   and features/Leaderboard/LeaderboardPage.module.css. Global body/main rules
+   moved to src/styles/main.css. This file is no longer imported anywhere;
+   delete it together with this styles/ directory. */

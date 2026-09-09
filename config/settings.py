@@ -153,8 +153,9 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Django REST Framework. Every list endpoint returns a page envelope,
-# {"count", "next", "previous", "results"}, so API clients read .results.
+# Django REST Framework. General player/match lists return a page envelope,
+# {"count", "next", "previous", "results"}. The compact leaderboard explicitly
+# opts out of pagination and returns a complete array.
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
@@ -182,10 +183,11 @@ CORS_ALLOWED_ORIGINS = []
 # Production security hardening.
 # These are conditional on DEBUG so local development over plain HTTP is
 # unaffected. They take effect automatically once DJANGO_DEBUG=False, which
-# is how the app will run once deployed (e.g. on Render).
+# is how the app runs in production.
 # https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 if not DEBUG:
-    # Render terminates TLS at its proxy and forwards plain HTTP internally.
+    # Requires a trusted TLS-terminating proxy that strips client-supplied
+    # X-Forwarded-Proto and sets it correctly before forwarding requests.
     # Without this, Django sees "http", SECURE_SSL_REDIRECT sends the browser
     # to HTTPS, the proxy forwards HTTP again, and the request loops forever.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

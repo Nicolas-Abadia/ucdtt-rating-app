@@ -13,7 +13,7 @@
   <h2>Leaderboard</h2>
   {# The single search field still submits on Enter. Clear filters only #}
   {# appears after a query so the unfiltered leaderboard stays uncluttered. #}
-  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start;">
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start; margin-bottom: 1rem;">
     <form method="get" action="{% url "players:index" %}" style="flex: 1 1 18rem; margin: 0;">
       <input type="search" name="q" value="{{ search_query }}" placeholder="Search by name or id" enterkeyhint="search" style="margin-bottom: 0;">
     </form>

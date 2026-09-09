@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Sofia+Sans:ital,wght@0,1..1000;1,1..1000&display=swap');
+
+:root {
+  /* Global Brand Palette */
+  --arb-lake-blue: #2929FF;
+  --night-sky-blue: #3333B5;
+  --dark-aggie-blue: #002357;
+  --aggie-blue: #164C82;
+  --daylight-sky-blue: #29ADFF;
+  --chetto-yellow: #FFCF57;
+  --aggie-yellow: #DCB40B;
+  --aggie-pastel: #B8A262;
+  --tone-black: #1E1E1E;
+  --silent-black: #242424;
+  --pigeon-gray: #808080;
+  --soft-cloud-white: #F8F8F8;
+  --white: #FFFFFF;
+  --evening-purple: #7048FF;
+  --blood-red: #FA2E2E;
+  --arb-grass-green: #39E85F;
+
+  /* Neutral Scale (surfaces, borders, text) */
+  --gray-50: #FAFAFA;
+  --gray-200: #DEE2E6;
+  --gray-400: #A8A8A8;
+  --gray-900: #1A1A1A;
+
+  /* Semantic surfaces: light by default, dark via the device preference. */
+  --bg-primary: var(--soft-cloud-white);
+  --bg-surface: var(--white);
+  --bg-header-control: var(--white);
+  --border-color: var(--gray-200);
+  --text-main: var(--tone-black);
+  /* Darker than Figma's #808080 for readable small text. */
+  --text-muted: #707070;
+  --text-inverse: var(--white);
+
+  /* Typography Family */
+  --family-sans: "Sofia Sans";
+
+  /* Typography Scales */
+  --scale-1: 12px;
+  --scale-2: 16px;
+  --scale-3: 24px;
+  --scale-4: 32px;
+  --scale-5: 48px;
+
+  /* Typography Weights */
+  --radius-card: 24px;
+  --radius-dock: 35.5px;
+  --leaderboard-width: 903px;
+  --row-gap: 18px;
+  --focus-color: var(--night-sky-blue);
+  --hover-surface: var(--gray-200);
+
+  /* Player cards: blue 4px stroke and 5px offset shadow, in both themes.
+     Search and hamburger: gray 2px stroke, no shadow, as authored in Figma.
+     These treatments are separate; neither applies to the navigation dock. */
+  --card-border: 4px solid var(--night-sky-blue);
+  --card-shadow: 0 5px 0 0 var(--night-sky-blue);
+  --control-border: 2px solid var(--pigeon-gray);
+
+  --weight-medium: 500;
+  --weight-extra-bold: 800;
+  --weight-black: 900;
+}
+
+/* Dark mode follows the device setting. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: var(--tone-black);
+    --bg-surface: var(--silent-black);
+    --bg-header-control: var(--tone-black);
+    --border-color: #4A4A4A;
+    --text-main: var(--white);
+    --text-muted: var(--gray-400);
+    --hover-surface: #3A3A3A;
+    --focus-color: var(--daylight-sky-blue);
+  }
+}
+
+/* Desktop density: the Figma canvas reads about 25% too large at 100% zoom,
+   so desktop overrides shrink the scale to roughly the 80% view. Mobile keeps
+   the authored values. */
+@media (min-width: 768px) {
+  :root {
+    --scale-1: 10px;
+    --scale-2: 13px;
+    --scale-3: 19px;
+    --scale-4: 26px;
+    --scale-5: 38px;
+    --radius-card: 19px;
+    --radius-dock: 28px;
+    --leaderboard-width: 722px;
+    --row-gap: 14px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--family-sans), sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+}
+
+/* Cards scrolling behind the fixed dock must not react while the dock is
+   hovered. NavigationMenu toggles this via mouseenter/mouseleave (not a
+   :has() selector, which proved inconsistent), so "is-dock-hovered" is a
+   plain global class name shared with that component's JS. */
+@media (hover: hover) and (pointer: fine) {
+  body.is-dock-hovered li { pointer-events: none; }
+}
+
+#root {
+  min-height: 100%;
+}

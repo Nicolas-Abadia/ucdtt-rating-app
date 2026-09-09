@@ -244,7 +244,7 @@ class DeletePlayerView(LoginRequiredMixin, generic.DeleteView):
 class MatchListView(generic.ListView):
     """Every recorded match, most recent first.
 
-    Two composable filters: ?q= keeps matches that involve a player whose
+    Composable filters: ?match_id= selects an exact match. ?q= keeps matches involving a player whose
     name contains the query, or whose id exactly matches an all-digit query.
     ?date= keeps matches played on that calendar day. The day is read in the
     visitor's timezone (the tz cookie), so the boundary matches what the
@@ -253,7 +253,7 @@ class MatchListView(generic.ListView):
     """
 
     model = Match
-    ordering = "-date"
+    ordering = ("-date", "-pk")
     template_name = "players/match_list.html"
     context_object_name = "match_list"
 
@@ -269,15 +269,29 @@ class MatchListView(generic.ListView):
                 player_id = int(query)
                 condition |= Q(player1_id=player_id) | Q(player2_id=player_id)
             queryset = queryset.filter(condition)
-        day = parse_date(self.request.GET.get("date", "").strip())
+        match_id = self.request.GET.get("match_id", "").strip()
+        if match_id:
+            # Reject malformed/out-of-range BigAutoField IDs without a 500.
+            if (not match_id.isascii() or not match_id.isdecimal()
+                    or len(match_id) > 19 or not 0 < int(match_id) <= 9223372036854775807):
+                return queryset.none()
+            queryset = queryset.filter(pk=int(match_id))
+        try:
+            day = parse_date(self.request.GET.get("date", "").strip())
+        except ValueError:
+            day = None
         if day is not None:
             queryset = queryset.filter(date__date=day)
-        return queryset
+        return queryset.select_related("player1", "player2")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["search_query"] = self.request.GET.get("q", "").strip()
-        day = parse_date(self.request.GET.get("date", "").strip())
+        context["match_id_filter"] = self.request.GET.get("match_id", "").strip()
+        try:
+            day = parse_date(self.request.GET.get("date", "").strip())
+        except ValueError:
+            day = None
         context["date_filter"] = day.isoformat() if day else ""
         return context
 

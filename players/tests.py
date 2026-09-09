@@ -1989,7 +1989,7 @@ class ApiTests(TestCase):
     def test_api_root_lists_the_endpoints(self):
         response = self.client.get("/api/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.json()), {"players", "matches"})
+        self.assertEqual(set(response.json()), {"players", "matches", "leaderboard"})
 
     def test_browsable_api_uses_the_project_pico_theme(self):
         response = self.client.get("/api/", HTTP_ACCEPT="text/html")
@@ -2042,12 +2042,14 @@ class ApiTests(TestCase):
         self.assertEqual(data["matches"][0]["score1"], 11)
         self.assertEqual(len(data["rating_history"]), 1)
 
-    def test_match_payload_carries_id_url_and_rating_changes(self):
+    def test_match_list_is_compact_and_detail_has_rating_changes(self):
         row = self.client.get("/api/matches/").json()["results"][0]
         self.assertEqual(row["id"], self.match.pk)
         self.assertTrue(row["url"].endswith(f"/api/matches/{self.match.pk}/"))
         self.assertEqual(row["score1"], 11)
-        self.assertEqual(len(row["rating_changes"]), 2)
+        self.assertNotIn("rating_changes", row)
+        detail = self.client.get(f"/api/matches/{self.match.pk}/").json()
+        self.assertEqual(len(detail["rating_changes"]), 2)
 
     def test_match_list_searches_by_either_players_name(self):
         payload = self.client.get("/api/matches/", {"q": "zhendong"}).json()

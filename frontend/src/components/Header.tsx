@@ -11,6 +11,7 @@ interface HeaderProps {
 export default function Header({ title }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   // Same-origin in production; the Vite dev proxy forwards /accounts to Django.
   const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -22,14 +23,25 @@ export default function Header({ title }: HeaderProps) {
         buttonRef.current?.focus();
       }
     }
+    // pointerdown (not click) also catches the touch contact that starts a
+    // scroll, so the menu closes as soon as the page is scrolled away.
+    function onPointerDown(event: PointerEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, [open]);
 
   return (
     <header className={styles.header}>
       <h1 className={styles.title}>{title}</h1>
-      <div className={styles.accountMenu}>
+      <div className={styles.accountMenu} ref={accountMenuRef}>
         <button
           ref={buttonRef}
           type="button"

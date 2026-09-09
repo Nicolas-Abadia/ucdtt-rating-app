@@ -119,10 +119,11 @@ body {
 }
 
 /* Cards scrolling behind the fixed dock must not react while the dock is
-   hovered. Element selectors are intentional: CSS-module class names are
-   hashed, and this guard lives in the global stylesheet. */
+   hovered. NavigationMenu toggles this via mouseenter/mouseleave (not a
+   :has() selector, which proved inconsistent), so "is-dock-hovered" is a
+   plain global class name shared with that component's JS. */
 @media (hover: hover) and (pointer: fine) {
-  body:has(nav:hover) li { pointer-events: none; }
+  body.is-dock-hovered li { pointer-events: none; }
 }
 
 #root {

@@ -2,21 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import styles from './NavigationMenu.module.css';
 
-const COLLAPSE_DELAY_MS = 3000;
+const COLLAPSE_DELAY_MS = 500;
 // Plain global class name (not a CSS-module class) so it can be shared with
 // the global stylesheet without hashing.
 const DOCK_HOVERED_CLASS = 'is-dock-hovered';
 
-// Re-checked on every mousemove rather than once on mount, so magnetism
-// turns off immediately if the viewport becomes touch-driven -- a real
-// device or a browser's responsive-design/mobile emulation, some of which
-// keep reporting hover:hover and pointer:fine while emulating a phone.
+// Re-checked on every pointer event rather than once on mount, so magnetism
+// turns off immediately if the viewport becomes touch-driven. Touch is
+// detected per event (pointerType) instead of ontouchstart/maxTouchPoints,
+// which also report true on touch-capable laptops using a real mouse.
 function isMagnetEligible() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return false;
   if (window.innerWidth < 768) return false;
-  if ('ontouchstart' in window) return false;
-  if (navigator.maxTouchPoints > 0) return false;
   return true;
 }
 
@@ -64,7 +62,10 @@ export default function NavigationMenu() {
       raf = settled ? 0 : requestAnimationFrame(tick);
     }
 
-    function onMouseMove(e: MouseEvent) {
+    function onPointerMove(e: PointerEvent) {
+      // Mobile emulation and real touch devices emit touch pointers; only a
+      // real mouse may pull the dock.
+      if (e.pointerType !== 'mouse') return;
       if (!isMagnetEligible()) {
         targetX = 0;
         targetY = 0;
@@ -87,9 +88,9 @@ export default function NavigationMenu() {
       if (!raf) raf = requestAnimationFrame(tick);
     }
 
-    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('pointermove', onPointerMove);
     return () => {
-      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('pointermove', onPointerMove);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
@@ -103,8 +104,20 @@ export default function NavigationMenu() {
         toggleRef.current?.focus();
       }
     }
+    // pointerdown (not click) also catches the touch contact that starts a
+    // scroll, so the dock collapses as soon as the page is scrolled away.
+    function onPointerDown(event: PointerEvent) {
+      if (!dockRef.current?.contains(event.target as Node)) {
+        clearCollapseTimer();
+        setExpanded(false);
+      }
+    }
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, [expanded]);
 
   return (

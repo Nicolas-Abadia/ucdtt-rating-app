@@ -50,7 +50,6 @@
 /* Explicit mobile lines avoid arbitrary breaks inside navigation labels. */
 .destinationLabel { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
 .destinationLabel > span { white-space: nowrap; }
-.mobileHyphen { display: inline; }
 .leaderboard, .matches, .toggle {
   min-width: 0;
   min-height: 88px;
@@ -79,7 +78,6 @@
   .action { font-size: var(--scale-3); }
   .destinationLabel { flex-direction: row; }
   .matches .destinationLabel { column-gap: 0.25em; }
-  .mobileHyphen { display: none; }
 }
 
 /* A single, gently eased lift. Touch gets press feedback, not sticky hover. */

@@ -42,6 +42,28 @@ class MatchSerializer(serializers.ModelSerializer):
         ]
 
 
+class MatchListSerializer(serializers.ModelSerializer):
+    """Compact match summary; rating history belongs to match detail."""
+
+    url = serializers.HyperlinkedIdentityField(view_name="match-detail", read_only=True)
+
+    class Meta:
+        model = Match
+        fields = ["id", "url", "player1", "player2", "score1", "score2", "date"]
+
+
+class LeaderboardSerializer(serializers.ModelSerializer):
+    rank = serializers.IntegerField(read_only=True)
+    wins = serializers.IntegerField(read_only=True)
+    losses = serializers.IntegerField(read_only=True)
+    display_rating = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Player
+        fields = ["id", "name", "rank", "display_rating", "wins", "losses"]
+        read_only_fields = fields
+
+
 class PlayerListSerializer(serializers.ModelSerializer):
 
     url = serializers.HyperlinkedIdentityField(
@@ -89,5 +111,5 @@ class PlayerDetailSerializer(serializers.ModelSerializer):
 
     def get_matches(self, obj):
         queryset = Match.objects.filter(Q(player1=obj) | Q(player2=obj)).order_by("-date")
-        serializer = MatchSerializer(queryset, many=True, context=self.context)
+        serializer = MatchListSerializer(queryset, many=True, context=self.context)
         return serializer.data

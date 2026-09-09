@@ -1,0 +1,21 @@
+.leaderboardPanel { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 40px; }
+.searchBar { position: relative; width: 100%; }
+.searchBar input {
+  width: 100%; min-width: 0; min-height: 59px;
+  padding: 16px 20px 16px 52px;
+  font: inherit; font-size: var(--scale-2);
+  border: var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface); color: var(--text-main);
+}
+.searchBar input::placeholder { color: var(--text-muted); opacity: 1; }
+.searchBar input:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+.searchIcon { position: absolute; left: 21px; top: 50%; transform: translateY(-50%); display: flex; pointer-events: none; color: var(--text-main); }
+.playerList { display: flex; flex-direction: column; gap: var(--row-gap); list-style: none; }
+.emptyState { text-align: center; color: var(--text-muted); }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (min-width: 768px) {
+  .leaderboardPanel { gap: 32px; }
+  .searchBar input { min-height: 47px; padding: 12px 16px 12px 42px; }
+  .searchIcon { left: 17px; }
+}

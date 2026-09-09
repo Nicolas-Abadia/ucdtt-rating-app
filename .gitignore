@@ -62,7 +62,9 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 staticfiles/
+# Production connection files (retain the legacy ignore for existing clones)
 .neon-prod-url
+.production-database-url
 
 # Local-only data files (rosters and other import inputs)
 /roster*.csv

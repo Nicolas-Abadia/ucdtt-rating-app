@@ -36,11 +36,11 @@ A reusable table tennis rating system currently being developed for the **Table 
 
 - Django 6.0.7
 - Django REST Framework 3.18
-- PostgreSQL — 16 locally via Docker, Neon in production
+- PostgreSQL 16 locally via Docker; any compatible PostgreSQL host in production
 - Python 3.13
 - `dj-database-url` for database configuration
 - `gunicorn` as the WSGI server, `whitenoise` for static file serving
-- Deployed on Render, with Neon as the managed Postgres host
+- React and TypeScript frontend in `frontend/`, built with Vite
 
 ## Local setup
 
@@ -87,6 +87,7 @@ A public read-only API exposes player and match data as JSON. It also includes a
 | --- | --- | --- |
 | Players | `/api/players/` | `/api/players/<id>/` |
 | Matches | `/api/matches/` | `/api/matches/<id>/` |
+| Leaderboard | `/api/leaderboard/` | Not applicable |
 
 Player and match lists support player-name fragments or exact numeric player IDs with `?q=`:
 
@@ -101,7 +102,13 @@ Match lists also support calendar-day filtering with `?date=YYYY-MM-DD`:
 /api/matches/?date=2026-08-20
 ```
 
-List responses use page-number pagination with 20 results per page. These endpoints currently expose only `GET`, `HEAD`, and `OPTIONS`. Authenticated write endpoints and token authentication are planned, but are not part of this version.
+Player and match lists use page-number pagination with 20 results per page. Match lists (including those embedded in player detail) contain match summaries; `rating_changes` is returned only by match detail. Player detail still includes the player's own `rating_history`.
+
+`/api/leaderboard/` returns an unpaginated JSON array with exactly `id`, `name`, `rank`, `display_rating`, `wins`, and `losses`. Wins/losses are calculated from recorded match scores, including both player positions; no stored counters or migration are required. Rank uses the exact stored rating, with equal ratings sharing competition ranks (1, 1, 3). Name and ID provide stable ordering within ties. The React leaderboard filters this complete roster locally and preserves server ranks. This compact full-roster response suits a club-sized deployment; large deployments should introduce server-side search and pagination without recalculating ranks within each page.
+
+Data endpoints expose only `GET`, `HEAD`, and `OPTIONS`. JWT token obtain/refresh endpoints exist at `/api/token/` and `/api/token/refresh/`; authenticated data-write endpoints are not implemented.
+
+The server-rendered match list additionally supports an exact match-ID filter, separate from player search: `/matches/?match_id=42`. It combines with `q` and `date`; invalid or unknown IDs return no matches.
 
 ## Rating system
 
@@ -200,21 +207,25 @@ Uploads must end in `.csv` and are capped at 2 MB. One difference from the comma
 
 ## Running management commands against production
 
-Neon accepts connections from anywhere, so production maintenance runs from a local checkout.
+Run maintenance from the deployment platform's secure shell/job runner, or from a local checkout only when the database's network policy permits it. Use the standard `DATABASE_URL` environment variable with the selected PostgreSQL provider's connection string.
 
-Keep the production connection string in `.neon-prod-url`, which is gitignored, and pass it inline:
+For optional local maintenance, a connection string may be stored in `.production-database-url`, which is gitignored. Restrict access to that file and never commit its contents:
 
 ```bash
 source .venv/bin/activate
-DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_players roster.csv --dry-run
-DATABASE_URL="$(cat .neon-prod-url)" python manage.py import_matches matches.csv --dry-run
+chmod 600 .production-database-url
+DATABASE_URL="$(cat .production-database-url)" python manage.py import_players roster.csv --dry-run
+DATABASE_URL="$(cat .production-database-url)" python manage.py import_matches matches.csv --dry-run
 ```
+
+Inspect the target database and dry-run report before a write. Existing credential files are not renamed automatically; legacy ignore rules remain to prevent accidental tracking.
 
 ## Deployment
 
-Runs as a Render web service backed by a Neon Postgres database.
+Run the Django application on any compatible Python/WSGI host with a PostgreSQL database. Choose hosting, connection pooling, and network access policies independently.
 
-- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate`
+- Build: `pip install -r requirements.txt && python manage.py collectstatic --no-input`
+- Release: `python manage.py migrate`, run once before new application instances receive traffic. A platform without a release phase can run this after the build, with deployment concurrency controlled.
 - Start: `gunicorn config.wsgi:application`
 - Static files are served by WhiteNoise from the application process, so no CDN or storage bucket is required.
 
@@ -225,9 +236,20 @@ Required environment variables:
 | `DJANGO_SECRET_KEY` | Cryptographic signing key for sessions and CSRF tokens |
 | `DJANGO_DEBUG` | `False` in production |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated hostnames, no scheme or trailing slash |
-| `DATABASE_URL` | Postgres connection string, pooled and with `sslmode=require` |
+| `DATABASE_URL` | PostgreSQL connection string with the TLS options required by the selected host; use a pooling endpoint only when supported |
 
-Setting `DJANGO_DEBUG=False` also switches on HTTPS redirects, secure cookies, HSTS, and the hashed-manifest static storage backend.
+Setting `DJANGO_DEBUG=False` also switches on HTTPS redirects, secure cookies, HSTS, and the hashed-manifest static storage backend. The current proxy configuration expects a trusted TLS-terminating reverse proxy that strips client-supplied `X-Forwarded-Proto` headers and sets the correct value. Review this setting when deploying without that proxy arrangement.
+
+### React frontend
+
+```bash
+cd frontend
+npm ci
+npm run build
+npm run dev
+```
+
+During development, Vite proxies `/api` to the local Django server. For production, either configure a same-origin `/api` reverse proxy or set `VITE_API_BASE_URL` to the backend origin at build time. A separately hosted frontend also requires its exact origin in Django's `CORS_ALLOWED_ORIGINS`, which is currently empty. The Vite development proxy does not apply to the production build. Serve `frontend/dist/` from a static host; no particular provider is required.
 
 ## Project structure
 

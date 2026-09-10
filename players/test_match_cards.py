@@ -123,8 +123,12 @@ class MatchCardTests(TestCase):
         self.assertEqual(self.cards(match_id=self.first.pk, date='2026-07-31', tz='America/Sao_Paulo')['count'], 1)
         self.assertEqual(self.cards(match_id=self.first.pk, date='2026-08-01', tz='America/Sao_Paulo')['count'], 0)
         self.assertEqual(self.cards(q='Alice', date='2026-07-31', tz='America/Sao_Paulo')['count'], 1)
-        with timezone.override('UTC'):
-            self.assertEqual(self.cards(match_id=self.first.pk, date='2026-08-01')['count'], 1)
+        # No tz parameter: the day boundary follows the browser's tz cookie,
+        # which TimezoneMiddleware activates for the request (a bare
+        # timezone.override would be reset to settings.TIME_ZONE instead).
+        self.client.cookies.load({'tz': 'UTC'})
+        self.assertEqual(self.cards(match_id=self.first.pk, date='2026-08-01')['count'], 1)
+        self.assertEqual(self.cards(match_id=self.first.pk, date='2026-07-31')['count'], 0)
 
     def test_date_filter_handles_daylight_saving_boundaries(self):
         # March 8 in Los Angeles is a 23-hour day in 2026.

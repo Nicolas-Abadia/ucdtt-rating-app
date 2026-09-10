@@ -144,24 +144,29 @@ class HeadToHeadTests(TestCase):
         self.assertEqual(payload["count"], 2)
 
     def test_excludes_current_future_and_unrelated_matches(self):
+        # Same timestamp as the current match but created first: the primary
+        # key tiebreak counts it as a prior meeting.
+        earlier_same_time = Match.objects.create(player1=self.b, player2=self.a,
+            score1=11, score2=5, date=self.day)
         current = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day)
-        future = Match.objects.create(player1=self.a, player2=self.b,
+        # A later pk at the same timestamp does not count, and neither do
+        # future or unrelated matches. The score differs because the model
+        # rejects a byte-identical match as a duplicate.
+        Match.objects.create(player1=self.b, player2=self.a,
+            score1=11, score2=6, date=self.day)
+        Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day + timedelta(days=1))
-        unrelated = Match.objects.create(player1=self.a, player2=self.c,
+        Match.objects.create(player1=self.a, player2=self.c,
             score1=11, score2=7, date=self.day - timedelta(days=1))
-        payload = self.head_to_head(current)
-        self.assertEqual(payload["results"], [])
-        self.assertEqual(payload["record"], {"player1_wins": 0, "player2_wins": 0})
-        # Same-instant tiebreak: an earlier pk at the same timestamp counts,
-        # a later pk does not.
-        earlier_same_time = Match.objects.create(player1=self.b, player2=self.a,
-            score1=11, score2=5, date=current.date)
-        earlier_same_time.pk < current.pk or self.fail("fixture must order pk before current")
+        # The earliest meeting of the pair has no priors at all.
+        empty = self.head_to_head(earlier_same_time)
+        self.assertEqual(empty["results"], [])
+        self.assertEqual(empty["record"], {"player1_wins": 0, "player2_wins": 0})
         payload = self.head_to_head(current)
         self.assertEqual([row["id"] for row in payload["results"]], [earlier_same_time.pk])
+        # Ben won the prior meeting; Ben is player2 on the current match.
         self.assertEqual(payload["record"], {"player1_wins": 0, "player2_wins": 1})
-        del future, unrelated
 
     def test_results_are_cards_and_paginated(self):
         for index in range(21):

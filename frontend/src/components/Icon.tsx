@@ -1,4 +1,4 @@
-type IconName = 'menu' | 'close' | 'search' | 'more' | 'plus' | 'upload' | 'rating' | 'win' | 'loss';
+type IconName = 'menu' | 'close' | 'search' | 'more' | 'plus' | 'upload' | 'rating' | 'win' | 'loss' | 'back';
 
 export default function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return (
@@ -12,6 +12,7 @@ export default function Icon({ name, size = 20 }: { name: IconName; size?: numbe
       {name === 'rating' && <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" />}
       {name === 'win' && <path d="m5 12 4 4L19 6" />}
       {name === 'loss' && <path d="m7 7 10 10M7 17 17 7" />}
+      {name === 'back' && <path d="M15 5 8 12l7 7" />}
     </svg>
   );
 }

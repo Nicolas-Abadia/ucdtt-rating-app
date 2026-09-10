@@ -18,10 +18,13 @@ function isMagnetEligible() {
   return true;
 }
 
-// Disclosure navigation, not an ARIA application menu or modal. Disabled
-// destinations remain explicit until their React routes exist. The expanded
-// state is owned here; the header account menu is a separate component.
-export default function NavigationMenu() {
+// Public navigation has only two destinations. Officer controls require a
+// confirmed auth state supplied by the caller; public is the safe default.
+// This UI gate does not replace server-side authorization.
+export default function NavigationMenu({ activePage = 'leaderboard', isOfficer = false }: {
+  activePage?: 'leaderboard' | 'matches';
+  isOfficer?: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLElement>(null);
@@ -39,7 +42,10 @@ export default function NavigationMenu() {
     collapseTimerRef.current = window.setTimeout(() => setExpanded(false), COLLAPSE_DELAY_MS);
   }
 
-  useEffect(() => clearCollapseTimer, []);
+  useEffect(() => () => {
+    clearCollapseTimer();
+    document.body.classList.remove(DOCK_HOVERED_CLASS);
+  }, []);
 
   // Weak magnetic follow: the dock drifts a few px toward the cursor with a
   // lerped delay.
@@ -96,7 +102,7 @@ export default function NavigationMenu() {
   }, []);
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!isOfficer || !expanded) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         clearCollapseTimer();
@@ -118,12 +124,12 @@ export default function NavigationMenu() {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [expanded]);
+  }, [expanded, isOfficer]);
 
   return (
     <nav
       ref={dockRef}
-      className={`${styles.dock} ${expanded ? styles.expanded : ''}`}
+      className={`${styles.dock} ${isOfficer && expanded ? styles.expanded : ''} ${!isOfficer ? styles.publicDock : ''}`}
       aria-label="Main navigation"
       onMouseEnter={() => {
         document.body.classList.add(DOCK_HOVERED_CLASS);
@@ -131,28 +137,27 @@ export default function NavigationMenu() {
       }}
       onMouseLeave={() => {
         document.body.classList.remove(DOCK_HOVERED_CLASS);
-        if (expanded) scheduleCollapse();
+        if (isOfficer && expanded) scheduleCollapse();
       }}
     >
-      <div id="navigation-options" className={styles.actions} aria-hidden={!expanded}>
+      {isOfficer && <div id="navigation-options" className={styles.actions} aria-hidden={!expanded}>
         <div className={styles.actionsInner}>
-          <button type="button" disabled className={styles.action}><Icon name="plus" />Add new player <small>Coming soon</small></button>
+          <button type="button" disabled className={styles.action}><Icon name="plus" />{activePage === 'matches' ? 'Log new match' : 'Add new player'} <small>Coming soon</small></button>
           <button type="button" disabled className={styles.action}><Icon name="upload" />Import CSV <small>Coming soon</small></button>
         </div>
-      </div>
+      </div>}
       <div className={styles.destinations}>
-        <a className={styles.leaderboard} href="#leaderboard" aria-current="page" aria-label="Leaderboard">
+        <a className={styles.leaderboard} href="#leaderboard" aria-current={activePage === 'leaderboard' ? 'page' : undefined} aria-label="Leaderboard">
           <span className={styles.destinationLabel}>
             <span>Leader</span><span>board</span>
           </span>
         </a>
-        <button type="button" className={styles.matches} disabled>
+        <a className={styles.matches} href="#matches" aria-current={activePage === 'matches' ? 'page' : undefined} aria-label="Match History">
           <span className={styles.destinationLabel}>
             <span>Match</span>{' '}<span>History</span>
           </span>
-          <small>Coming soon</small>
-        </button>
-        <button
+        </a>
+        {isOfficer && <button
           ref={toggleRef}
           type="button"
           className={styles.toggle}
@@ -165,7 +170,7 @@ export default function NavigationMenu() {
           aria-expanded={expanded}
         >
           <Icon name={expanded ? 'close' : 'more'} size={28} />
-        </button>
+        </button>}
       </div>
     </nav>
   );

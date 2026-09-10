@@ -1,0 +1,45 @@
+.layout { display: flex; flex-direction: column; gap: 32px; }
+.leftColumn, .rightColumn { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.identityCard {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  padding: 24px 20px; border: var(--card-border); box-shadow: var(--card-shadow);
+  border-radius: var(--radius-card); background: var(--bg-surface);
+}
+.avatarWrap { position: relative; }
+.avatar {
+  width: 96px; height: 96px; border-radius: 24px; display: grid; place-items: center;
+  background: var(--avatar-bg); color: var(--avatar-ink); font-weight: var(--weight-black); font-size: var(--scale-5);
+}
+.rankBadge {
+  position: absolute; bottom: -8px; right: -8px; min-width: 32px; height: 32px; padding: 0 6px;
+  border-radius: 16px; display: grid; place-items: center; background: var(--aggie-yellow); color: var(--tone-black);
+  font-weight: var(--weight-black); font-size: var(--scale-2); border: 3px solid var(--bg-surface);
+}
+.name { font-size: var(--scale-4); font-weight: var(--weight-black); }
+.playerId { color: var(--text-muted); font-size: var(--scale-2); font-variant-numeric: tabular-nums; }
+.ucdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
+.attributes { display: flex; gap: 24px; margin-top: 4px; }
+.attributes div { display: flex; flex-direction: column; gap: 2px; }
+.attributes dt { font-size: 12px; color: var(--text-muted); }
+.attributes dd { font-weight: var(--weight-extra-bold); }
+.statsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* Bento rule: a lone final stat spans the whole row instead of half of it. */
+.statCard:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.statCard {
+  display: flex; flex-direction: column; gap: 4px; padding: 16px; border: var(--control-border);
+  border-radius: var(--radius-card); background: var(--bg-surface);
+}
+.statCard span:first-child { font-size: var(--scale-4); font-weight: var(--weight-black); font-variant-numeric: tabular-nums; }
+.statCard span:last-child { font-size: var(--scale-2); color: var(--text-muted); }
+.sectionHeading { font-size: var(--scale-3); font-weight: var(--weight-extra-bold); margin-bottom: 12px; }
+.chart { display: flex; flex-direction: column; gap: 12px; }
+.chart svg { width: 100%; height: auto; }
+.chartEmpty, .chartNote { color: var(--text-muted); font-size: var(--scale-2); }
+.chartTable { border-collapse: collapse; font-size: var(--scale-2); }
+.chartTable caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.chartTable th, .chartTable td { padding: 4px 10px; text-align: left; border-bottom: 1px solid var(--pigeon-gray); }
+@media (min-width: 900px) {
+  .layout { flex-direction: row; align-items: flex-start; }
+  .leftColumn { flex: 1 1 55%; }
+  .rightColumn { flex: 1 1 45%; }
+}

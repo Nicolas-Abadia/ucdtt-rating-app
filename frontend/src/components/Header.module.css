@@ -7,6 +7,7 @@
   justify-content: space-between;
   gap: 12px;
 }
+.titleGroup { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .title {
   min-width: 0;
   font-size: clamp(28px, 9vw, 36px);
@@ -14,6 +15,17 @@
   line-height: 1.2;
   text-transform: uppercase;
 }
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-medium);
+}
+.backLink:hover { color: var(--text-main); }
+.backLink:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; border-radius: 8px; }
 .accountMenu {
   position: relative;
   flex-shrink: 0;

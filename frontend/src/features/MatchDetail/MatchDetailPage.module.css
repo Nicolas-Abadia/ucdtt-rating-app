@@ -1,0 +1,49 @@
+.layout { display: flex; flex-direction: column; gap: 32px; }
+.mainColumn, .sideColumn { min-width: 0; }
+.mainColumn { display: flex; flex-direction: column; gap: 32px; }
+/* Grid items stretch to the tallest card, and each card grows to fill its
+   block, so both SCORE blocks sit on one shared baseline regardless of how
+   many lines a name wraps to. */
+.participants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
+/* Each player block sits on its own panel: bg-surface resolves to
+   silent-black in dark mode, per the Figma match-detail spec. */
+.participantBlock {
+  display: flex; flex-direction: column; align-items: center; gap: 24px; min-width: 0; height: 100%;
+  padding: 24px 16px; border-radius: var(--radius-card); background: var(--bg-surface);
+}
+.slot { font-size: var(--scale-2); font-weight: var(--weight-extra-bold); text-transform: uppercase; }
+.participant {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;
+  padding: 24px 16px; border: var(--match-card-border); box-shadow: var(--match-card-shadow);
+  border-radius: var(--radius-card); background: var(--bg-surface);
+  text-decoration: none; color: inherit; text-align: center;
+  flex: 1;
+}
+.participant:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; }
+.avatar {
+  width: 72px; height: 72px; border-radius: 24px; display: grid; place-items: center;
+  background: var(--avatar-bg); color: var(--avatar-ink); font-weight: var(--weight-black); font-size: var(--scale-4);
+}
+.participantName { font-weight: var(--weight-black); font-size: var(--scale-3); }
+.playerId { font-size: var(--scale-1); color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.ucdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
+.scoreBlock { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.scoreLabel { font-size: var(--scale-2); font-weight: var(--weight-extra-bold); text-transform: uppercase; color: var(--text-muted); }
+.participantScore { font-size: clamp(32px, 9vw, 48px); font-weight: var(--weight-black); font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-muted); }
+.winner { color: var(--text-main); }
+.dateSection { display: flex; flex-direction: column; }
+.sectionHeading { font-size: var(--scale-2); font-weight: var(--weight-extra-bold); text-transform: uppercase; margin-bottom: 12px; }
+.dateValue {
+  padding: 16px 20px; border: var(--control-border); border-radius: var(--radius-card);
+  background: var(--bg-surface); font-weight: var(--weight-extra-bold); font-variant-numeric: tabular-nums;
+}
+.record { font-size: var(--scale-2); color: var(--text-muted); }
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .participant { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
+  .participant:hover { transform: translateY(-1px) scale(1.008); }
+}
+@media (min-width: 900px) {
+  .layout { flex-direction: row; align-items: flex-start; gap: 40px; }
+  .mainColumn { flex: 1 1 48%; }
+  .sideColumn { flex: 1 1 52%; }
+}

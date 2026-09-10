@@ -182,12 +182,14 @@ class HeadToHeadTests(TestCase):
         self.assertIn("player1_rating", first_page["results"][0])
         self.assertEqual(len(self.head_to_head(current, page=2)["results"]), 1)
 
-    def test_unknown_match_returns_404_and_stays_read_only(self):
+    def test_unknown_match_returns_404_and_anonymous_writes_are_rejected(self):
         self.assertEqual(self.client.get("/api/matches/99999/head-to-head/").status_code, 404)
         match = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day)
+        # The action is GET-only, and unauthenticated requests meet the auth
+        # gate first: 401, not a written row.
         self.assertEqual(
-            self.client.post(f"/api/matches/{match.pk}/head-to-head/", {}).status_code, 405)
+            self.client.post(f"/api/matches/{match.pk}/head-to-head/", {}).status_code, 401)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

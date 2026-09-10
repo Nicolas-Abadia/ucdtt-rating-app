@@ -1,10 +1,11 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Q
+from django.db.models import ProtectedError, Q
 from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.routers import DefaultRouter
 
 from rest_framework.decorators import action
@@ -22,18 +23,36 @@ from .serializers import (
     LeaderboardSerializer,
     PlayerListSerializer,
     PlayerDetailSerializer,
+    PlayerWriteSerializer,
+    MatchWriteSerializer,
 )
 
 
-class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
+class PlayerViewSet(viewsets.ModelViewSet):
 
+    # Reads stay public; create/update/delete require an officer's JWT.
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = Player.objects.order_by("-rating")
 
     def get_serializer_class(self):
         # Dynamically switch serializers based on the requested API action
+        if self.action in ("create", "update", "partial_update"):
+            return PlayerWriteSerializer
         if self.action == 'retrieve':
             return PlayerDetailSerializer
         return PlayerListSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        # Player is PROTECTed by Match and RatingHistory, so deleting someone
+        # who has played is refused rather than erroring, like DeletePlayerView.
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This player has recorded matches and cannot be deleted. "
+                            "Those matches are what the other players' ratings were computed from."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     # Used instead of DRF's SearchFilter because search matches for names or IDs,
     # which the built-in filter can't express.
@@ -69,12 +88,17 @@ class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
         return self.get_paginated_response(serializer.data)
 
 
-class MatchViewSet(viewsets.ReadOnlyModelViewSet):
+class MatchViewSet(viewsets.ModelViewSet):
+    # Reads stay public; log/edit/delete require an officer's JWT. Rating
+    # side effects of every write live in Match.save()/delete().
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = (
         Match.objects.select_related("player1", "player2").order_by("-date", "-pk")
     )
 
     def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return MatchWriteSerializer
         if self.action == "retrieve":
             if self.request.query_params.get("include") == "card":
                 return MatchDetailCardSerializer

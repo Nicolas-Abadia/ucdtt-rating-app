@@ -2077,8 +2077,11 @@ class ApiTests(TestCase):
         ).json()
         self.assertEqual(payload["count"], 0)
 
-    def test_writes_are_not_accepted(self):
+    def test_anonymous_writes_are_rejected(self):
+        # The API accepts officer writes now; anonymous callers are stopped
+        # by the auth gate (401) before anything is written.
         response = self.client.post(
             "/api/players/", {"name": "Nobody"}, format="json"
         )
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(Player.objects.filter(name="Nobody").exists())

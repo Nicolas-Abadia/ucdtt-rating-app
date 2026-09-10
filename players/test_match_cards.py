@@ -114,8 +114,10 @@ class MatchCardTests(TestCase):
         self.assertEqual([row['id'] for row in self.cards(match_id=self.first.pk)['results']], [self.first.pk])
         self.assertEqual([row['id'] for row in self.cards(q='Carla')['results']], [self.second.pk])
 
-    def test_endpoint_stays_read_only(self):
-        self.assertEqual(self.client.post('/api/matches/?include=card', {}).status_code, 405)
+    def test_anonymous_writes_are_rejected(self):
+        # Writes exist for officers now, but the auth gate turns away
+        # anonymous callers before any of them apply: 401, nothing stored.
+        self.assertEqual(self.client.post('/api/matches/?include=card', {}).status_code, 401)
 
     def test_date_filter_matches_the_device_calendar_day(self):
         self.first.date = datetime(2026, 8, 1, 2, 30, tzinfo=dt_timezone.utc)

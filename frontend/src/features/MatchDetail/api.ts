@@ -40,7 +40,9 @@ export function parseHeadToHead(value: unknown): HeadToHeadPage {
     next: value.next as string | null,
     previous: value.previous as string | null,
     results: value.results.map(parseMatchDetail),
-    record: value.record as MatchRecord,
+    // Validated field-by-field above; the double assertion satisfies TS2352
+    // because Record<string, unknown> does not overlap MatchRecord nominally.
+    record: value.record as unknown as MatchRecord,
   };
 }
 

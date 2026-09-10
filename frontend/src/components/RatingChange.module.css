@@ -1,0 +1,9 @@
+.rating { display: inline-flex; justify-content: center; flex-wrap: wrap; gap: 2px 4px; font-size: 12px; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.rating > span { white-space: nowrap; }
+.up { color: var(--rating-gain); }
+.down { color: var(--rating-loss); }
+.unchanged, .unavailable { color: var(--text-muted); }
+.unavailable { font-size: 11px; }
+@media (min-width: 768px) {
+  .rating { font-size: var(--scale-2); }
+}

@@ -44,6 +44,8 @@
   font-weight: var(--weight-medium);
 }
 .destinations { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 4px; }
+.publicDock .destinations { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.publicDock .matches { border-top-right-radius: calc(var(--radius-dock) - 6px); border-bottom-right-radius: calc(var(--radius-dock) - 6px); }
 .dock button, .dock a { border: 0; font-family: inherit; }
 .dock button:disabled { cursor: not-allowed; }
 .dock small { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; }
@@ -67,9 +69,9 @@
   font-weight: var(--weight-black);
   gap: 5px;
 }
-.leaderboard { background: var(--night-sky-blue); color: var(--white); text-decoration: none; border-top-left-radius: 29.5px; border-bottom-left-radius: 29.5px; }
-.matches { background: var(--aggie-yellow); color: var(--tone-black); }
-.toggle { background: var(--white); color: var(--tone-black); cursor: pointer; border-top-right-radius: 29.5px; border-bottom-right-radius: 29.5px; }
+.leaderboard { background: var(--night-sky-blue); color: var(--white); text-decoration: none; border-top-left-radius: calc(var(--radius-dock) - 6px); border-bottom-left-radius: calc(var(--radius-dock) - 6px); }
+.matches { background: var(--aggie-yellow); color: var(--tone-black); text-decoration: none; }
+.toggle { background: var(--white); color: var(--tone-black); cursor: pointer; border-top-right-radius: calc(var(--radius-dock) - 6px); border-bottom-right-radius: calc(var(--radius-dock) - 6px); }
 .dock :focus-visible { outline: 3px solid var(--daylight-sky-blue); outline-offset: -5px; }
 @media (min-width: 768px) {
   .dock { width: 420px; }
@@ -83,7 +85,7 @@
 /* A single, gently eased lift. Touch gets press feedback, not sticky hover. */
 @media (prefers-reduced-motion: no-preference) {
   .dock { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
-  .leaderboard, .toggle, .action:not(:disabled) {
+  .leaderboard, .matches, .toggle, .action:not(:disabled) {
     transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1.1);
   }
   @media (hover: hover) and (pointer: fine) {
@@ -93,13 +95,13 @@
         translateY(calc(var(--magnet-y, 0px) - 3px)) scale(1.02);
     }
     /* Nearly flat: a hint of lift, almost no grow. */
-    .leaderboard:hover, .toggle:hover, .action:not(:disabled):hover {
+    .leaderboard:hover, .matches:hover, .toggle:hover, .action:not(:disabled):hover {
       transform: translateY(-1px) scale(1.005);
     }
   }
   /* Pressed impression: the button sinks a little; the dock's overflow clip
      masks it so nothing escapes the rounded shape. */
-  .leaderboard:active, .toggle:active, .action:not(:disabled):active {
+  .leaderboard:active, .matches:active, .toggle:active, .action:not(:disabled):active {
     transform: translateY(2px) scale(0.98);
   }
 }

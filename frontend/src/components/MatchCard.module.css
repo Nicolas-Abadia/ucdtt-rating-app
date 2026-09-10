@@ -1,0 +1,38 @@
+/* Match-history reference: gold card, edge scores, timestamp above a
+   divided pair of names/ratings. Density and surfaces reuse the app tokens. */
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(6px, 2vw, 18px);
+  padding: 15px 12px;
+  min-height: 108px;
+  border: var(--match-card-border);
+  box-shadow: var(--match-card-shadow);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+.body { min-width: 0; display: grid; gap: 8px; }
+.meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 3px 8px; text-align: center; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.players { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.player { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 0 6px; }
+.player:first-child { align-items: flex-end; text-align: right; }
+.player:last-child { align-items: flex-start; text-align: left; }
+.player + .player { border-left: 2px solid var(--pigeon-gray); }
+.name { max-width: 100%; font-size: var(--scale-2); font-weight: var(--weight-black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score { font-size: clamp(48px, 7vw, 36px); font-weight: var(--weight-black); line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.winner { color: var(--text-main); }
+.blue { border: var(--card-border); box-shadow: var(--card-shadow); }
+.cardLink { display: block; text-decoration: none; color: inherit; }
+.cardLink:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; border-radius: var(--radius-card); }
+@media (min-width: 768px) {
+  .card { min-height: 90px; gap: 20px; padding: 12px 20px; }
+  .score { font-size: var(--scale-5); }
+  .name { font-size: var(--scale-3); }
+  .player { padding: 0 12px; }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .card { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
+  :global(body:not(.is-dock-hovered)) .card:hover { transform: translateY(-1px) scale(1.008); }
+}

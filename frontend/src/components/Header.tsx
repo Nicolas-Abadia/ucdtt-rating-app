@@ -4,11 +4,15 @@ import styles from './Header.module.css';
 
 interface HeaderProps {
   title: string;
+  // Deterministic destination (e.g. "Back to leaderboard"), not history.back,
+  // so a direct link into a detail page never leaves the app.
+  backLabel?: string;
+  backHash?: string;
 }
 
 // The header button is the account menu (login for now). Navigation options
 // have their own toggle on the NavigationMenu dock.
-export default function Header({ title }: HeaderProps) {
+export default function Header({ title, backLabel, backHash }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -40,7 +44,15 @@ export default function Header({ title }: HeaderProps) {
 
   return (
     <header className={styles.header}>
-      <h1 className={styles.title}>{title}</h1>
+      <div className={styles.titleGroup}>
+        {backHash && (
+          <a href={backHash} className={styles.backLink}>
+            <Icon name="back" size={18} />
+            <span>{backLabel ?? 'Back'}</span>
+          </a>
+        )}
+        <h1 className={styles.title} tabIndex={-1}>{title}</h1>
+      </div>
       <div className={styles.accountMenu} ref={accountMenuRef}>
         <button
           ref={buttonRef}

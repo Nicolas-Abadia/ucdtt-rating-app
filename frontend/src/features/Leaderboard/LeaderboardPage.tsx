@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import Header from '../../components/Header';
-import NavigationMenu from '../../components/NavigationMenu';
+import PageLayout from '../../components/PageLayout';
+import RequestState from '../../components/RequestState';
+import { apiUrl } from '../../services/api';
 import Leaderboard from './components/Leaderboard';
-import styles from './LeaderboardPage.module.css';
 import type { PlayerData } from './types';
 
 export default function LeaderboardPage() {
@@ -12,8 +12,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-    fetch(`${baseUrl}/api/leaderboard/`, { signal: controller.signal })
+    fetch(apiUrl('/api/leaderboard/'), { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
         return res.json();
@@ -33,22 +32,14 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div id="leaderboard" className={styles.page}>
-      <Header title="Leaderboard" />
-      <main className={styles.main}>
-        {isLoading ? (
-          <div className={styles.loadingContainer} role="status">
-            <div className={styles.spinner} aria-hidden="true" />
-            <h2>Loading leaderboard</h2>
-            <p>The server may take a moment to respond.</p>
-          </div>
-        ) : error ? (
-          <div className={styles.errorContainer} role="alert"><h2>Unable to load players</h2><p>{error}</p></div>
-        ) : (
-          <Leaderboard players={players} />
-        )}
-      </main>
-      <NavigationMenu />
-    </div>
+    <PageLayout title="Leaderboard" activePage="leaderboard">
+      {isLoading ? (
+        <RequestState loading title="Loading leaderboard" message="The server may take a moment to respond." />
+      ) : error ? (
+        <RequestState title="Unable to load players" message={error} />
+      ) : (
+        <Leaderboard players={players} />
+      )}
+    </PageLayout>
   );
 }

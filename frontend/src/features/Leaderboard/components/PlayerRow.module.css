@@ -8,8 +8,10 @@
   box-shadow: var(--card-shadow);
   border-radius: var(--radius-card);
   background: var(--bg-surface);
-  list-style: none;
+  text-decoration: none;
+  color: inherit;
 }
+.playerCard:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; }
 .playerAvatar {
   flex: 0 0 44px;
   width: 44px;
@@ -24,9 +26,11 @@
   line-height: 1;
 }
 .playerBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.playerInfo { display: flex; align-items: baseline; gap: 11px; min-width: 0; font-size: var(--scale-2); line-height: 1.2; }
+.playerInfo { display: flex; align-items: center; gap: 11px; min-width: 0; font-size: var(--scale-2); line-height: 1.2; }
 .playerRank { flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.playerIdentity { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .playerName { font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.playerId { color: var(--text-muted); font-size: 12px; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
 .stats { display: flex; flex-wrap: wrap; gap: 5px 10px; font-size: var(--scale-2); font-weight: var(--weight-medium); line-height: 1.2; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .stat { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .stat svg { flex-shrink: 0; }
@@ -38,7 +42,6 @@
   .stats { flex-shrink: 0; }
 }
 
-/* Decorative hover only: rows are not links, so no pointer cursor or tab stop. */
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   .playerCard { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
   .playerCard:hover { transform: translateY(-1px) scale(1.008); }

@@ -52,6 +52,54 @@ class MatchListSerializer(serializers.ModelSerializer):
         fields = ["id", "url", "player1", "player2", "score1", "score2", "date"]
 
 
+class MatchCardSerializer(MatchListSerializer):
+    """Opt-in card fields, without repeating the full rating_changes payload."""
+
+    player1_name = serializers.CharField(source="player1.name", read_only=True)
+    player2_name = serializers.CharField(source="player2.name", read_only=True)
+    player1_rating = serializers.SerializerMethodField()
+    player2_rating = serializers.SerializerMethodField()
+
+    class Meta(MatchListSerializer.Meta):
+        fields = MatchListSerializer.Meta.fields + [
+            "player1_name", "player2_name", "player1_rating", "player2_rating",
+        ]
+
+    @staticmethod
+    def rating_summary(obj, slot):
+        if getattr(obj, f"card_previous{slot}_match", None) != getattr(obj, f"card_previous{slot}_history_match", None):
+            return None
+        before = getattr(obj, f"card_rating{slot}_before", None)
+        after = getattr(obj, f"card_rating{slot}_after", None)
+        if before is None or after is None:
+            return None
+        # Match Player.display_rating's whole-number presentation. The delta
+        # reconciles the displayed endpoints; stored ratings remain exact.
+        before, after = round(before), round(after)
+        change = after - before
+        return {
+            "rating_before": before,
+            "rating_after": after,
+            "change": change,
+            "direction": "up" if change > 0 else "down" if change < 0 else "unchanged",
+        }
+
+    def get_player1_rating(self, obj):
+        return self.rating_summary(obj, 1)
+
+    def get_player2_rating(self, obj):
+        return self.rating_summary(obj, 2)
+
+
+class MatchDetailCardSerializer(MatchCardSerializer):
+    """Opt-in rich detail, retaining the original detail's rating_changes."""
+
+    rating_changes = RatingHistorySerializer(many=True, read_only=True)
+
+    class Meta(MatchCardSerializer.Meta):
+        fields = MatchCardSerializer.Meta.fields + ["rating_changes"]
+
+
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank = serializers.IntegerField(read_only=True)
     wins = serializers.IntegerField(read_only=True)

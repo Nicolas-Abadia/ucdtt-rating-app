@@ -52,6 +52,35 @@ class WritePermissionTests(TestCase):
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
+class TokenBlacklistTests(TestCase):
+    """Logout invalidates the refresh token server-side, not just locally."""
+
+    def setUp(self):
+        self.client = APIClient()
+        User.objects.create_user("officer", password="testpass123")
+
+    def test_blacklisted_refresh_token_cannot_mint_new_access(self):
+        tokens = self.client.post("/api/token/", {
+            "username": "officer", "password": "testpass123",
+        }, format="json").json()
+        response = self.client.post("/api/token/blacklist/",
+            {"refresh": tokens["refresh"]}, format="json")
+        self.assertEqual(response.status_code, 200)
+        refresh = self.client.post("/api/token/refresh/",
+            {"refresh": tokens["refresh"]}, format="json")
+        self.assertEqual(refresh.status_code, 401)
+
+    def test_valid_token_pair_still_refreshes(self):
+        tokens = self.client.post("/api/token/", {
+            "username": "officer", "password": "testpass123",
+        }, format="json").json()
+        refresh = self.client.post("/api/token/refresh/",
+            {"refresh": tokens["refresh"]}, format="json")
+        self.assertEqual(refresh.status_code, 200)
+        self.assertIn("access", refresh.json())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PlayerWriteTests(TestCase):
     def setUp(self):
         self.client = APIClient()

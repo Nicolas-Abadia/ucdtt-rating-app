@@ -19,3 +19,13 @@
   .button { transition: transform 140ms ease, background-color 150ms ease; }
   .button:not(:disabled):active { transform: translateY(2px) scale(0.98); }
 }
+
+/* Primary action: the night-sky-blue used across authentication UI. */
+.primary {
+  background: var(--night-sky-blue);
+  border-color: var(--night-sky-blue);
+  color: var(--text-inverse);
+}
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover { background: var(--dark-aggie-blue); border-color: var(--dark-aggie-blue); }
+}

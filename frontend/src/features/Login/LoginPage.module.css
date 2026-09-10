@@ -1,0 +1,22 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+}
+.main { width: min(calc(100% - 42px), 420px); margin: 48px auto 0; }
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.heading { font-size: var(--scale-3); font-weight: var(--weight-black); text-transform: uppercase; }
+.subtitle { font-size: var(--scale-2); color: var(--text-muted); line-height: 1.5; }
+@media (min-width: 768px) {
+  .main { margin-top: 56px; }
+  .card { padding: 0; }
+}

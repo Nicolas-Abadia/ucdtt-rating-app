@@ -3,14 +3,8 @@ import Icon from './Icon';
 import styles from './NavigationMenu.module.css';
 
 const COLLAPSE_DELAY_MS = 500;
-// Plain global class name (not a CSS-module class) so it can be shared with
-// the global stylesheet without hashing.
 const DOCK_HOVERED_CLASS = 'is-dock-hovered';
 
-// Re-checked on every pointer event rather than once on mount, so magnetism
-// turns off immediately if the viewport becomes touch-driven. Touch is
-// detected per event (pointerType) instead of ontouchstart/maxTouchPoints,
-// which also report true on touch-capable laptops using a real mouse.
 function isMagnetEligible() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return false;
@@ -18,13 +12,35 @@ function isMagnetEligible() {
   return true;
 }
 
-// Public navigation has only two destinations. Officer controls require a
-// confirmed auth state supplied by the caller; public is the safe default.
-// This UI gate does not replace server-side authorization.
-export default function NavigationMenu({ activePage = 'leaderboard', isOfficer = false }: {
+interface NavigationMenuProps {
   activePage?: 'leaderboard' | 'matches';
   isOfficer?: boolean;
-}) {
+  officerContext?: 'player' | 'match';
+}
+
+function OfficerActions({ activePage, context }: { activePage: 'leaderboard' | 'matches'; context?: 'player' | 'match' }) {
+  if (context === 'player') {
+    return <>
+      <button type="button" disabled className={styles.action}><Icon name="edit" />Edit player <small>Coming soon</small></button>
+      <button type="button" disabled className={`${styles.action} ${styles.dangerAction}`}><Icon name="trash" />Delete player <small>Coming soon</small></button>
+    </>;
+  }
+  if (context === 'match') {
+    return <>
+      <button type="button" disabled className={styles.action}><Icon name="edit" />Edit match <small>Coming soon</small></button>
+      <button type="button" disabled className={`${styles.action} ${styles.dangerAction}`}><Icon name="trash" />Delete match <small>Coming soon</small></button>
+    </>;
+  }
+  return <>
+    <button type="button" disabled className={styles.action}><Icon name="plus" />{activePage === 'matches' ? 'Log new match' : 'Add new player'} <small>Coming soon</small></button>
+    <button type="button" disabled className={styles.action}><Icon name="upload" />Import CSV <small>Coming soon</small></button>
+  </>;
+}
+
+// Page actions live here, never in the account control. The white toggle stays
+// mounted through auth changes so it can bubble down while its grid track
+// closes on logout, leaving the two-destination public dock.
+export default function NavigationMenu({ activePage = 'leaderboard', isOfficer = false, officerContext }: NavigationMenuProps) {
   const [expanded, setExpanded] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLElement>(null);
@@ -36,26 +52,36 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
       collapseTimerRef.current = null;
     }
   }
-
   function scheduleCollapse() {
     clearCollapseTimer();
     collapseTimerRef.current = window.setTimeout(() => setExpanded(false), COLLAPSE_DELAY_MS);
   }
+
+  useEffect(() => {
+    if (isOfficer) return;
+
+    if (collapseTimerRef.current !== null) {
+      window.clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
+
+    // isOfficer=false starts the CSS shrink immediately. Reset the retained
+    // state one frame later so the next officer session starts collapsed.
+    const frame = window.requestAnimationFrame(() => setExpanded(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOfficer]);
 
   useEffect(() => () => {
     clearCollapseTimer();
     document.body.classList.remove(DOCK_HOVERED_CLASS);
   }, []);
 
-  // Weak magnetic follow: the dock drifts a few px toward the cursor with a
-  // lerped delay.
   useEffect(() => {
     const dock = dockRef.current;
     if (!dock) return;
-
-    const RANGE = 120; // px beyond the dock where attraction starts
-    const MAX = 8; // px maximum drift
-    const LERP = 0.1; // lower = more delay
+    const RANGE = 120;
+    const MAX = 8;
+    const LERP = 0.1;
     let targetX = 0, targetY = 0, currentX = 0, currentY = 0;
     let raf = 0;
 
@@ -68,19 +94,16 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
       raf = settled ? 0 : requestAnimationFrame(tick);
     }
 
-    function onPointerMove(e: PointerEvent) {
-      // Mobile emulation and real touch devices emit touch pointers; only a
-      // real mouse may pull the dock.
-      if (e.pointerType !== 'mouse') return;
+    function onPointerMove(event: PointerEvent) {
+      if (event.pointerType !== 'mouse') return;
       if (!isMagnetEligible()) {
-        targetX = 0;
-        targetY = 0;
+        targetX = 0; targetY = 0;
         if (!raf) raf = requestAnimationFrame(tick);
         return;
       }
       const rect = dock!.getBoundingClientRect();
-      const dx = e.clientX - (rect.left + rect.width / 2);
-      const dy = e.clientY - (rect.top + rect.height / 2);
+      const dx = event.clientX - (rect.left + rect.width / 2);
+      const dy = event.clientY - (rect.top + rect.height / 2);
       const dist = Math.hypot(dx, dy) || 1;
       const threshold = RANGE + Math.max(rect.width, rect.height) / 2;
       if (dist < threshold) {
@@ -88,8 +111,7 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
         targetX = (dx / dist) * MAX * strength;
         targetY = (dy / dist) * MAX * strength;
       } else {
-        targetX = 0;
-        targetY = 0;
+        targetX = 0; targetY = 0;
       }
       if (!raf) raf = requestAnimationFrame(tick);
     }
@@ -110,8 +132,6 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
         toggleRef.current?.focus();
       }
     }
-    // pointerdown (not click) also catches the touch contact that starts a
-    // scroll, so the dock collapses as soon as the page is scrolled away.
     function onPointerDown(event: PointerEvent) {
       if (!dockRef.current?.contains(event.target as Node)) {
         clearCollapseTimer();
@@ -127,50 +147,30 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
   }, [expanded, isOfficer]);
 
   return (
-    <nav
-      ref={dockRef}
-      className={`${styles.dock} ${isOfficer && expanded ? styles.expanded : ''} ${!isOfficer ? styles.publicDock : ''}`}
+    <nav ref={dockRef}
+      className={`${styles.dock} ${isOfficer ? styles.officerDock : styles.publicDock} ${isOfficer && expanded ? styles.expanded : ''}`}
       aria-label="Main navigation"
-      onMouseEnter={() => {
-        document.body.classList.add(DOCK_HOVERED_CLASS);
-        clearCollapseTimer();
-      }}
-      onMouseLeave={() => {
-        document.body.classList.remove(DOCK_HOVERED_CLASS);
-        if (isOfficer && expanded) scheduleCollapse();
-      }}
-    >
-      {isOfficer && <div id="navigation-options" className={styles.actions} aria-hidden={!expanded}>
-        <div className={styles.actionsInner}>
-          <button type="button" disabled className={styles.action}><Icon name="plus" />{activePage === 'matches' ? 'Log new match' : 'Add new player'} <small>Coming soon</small></button>
-          <button type="button" disabled className={styles.action}><Icon name="upload" />Import CSV <small>Coming soon</small></button>
-        </div>
-      </div>}
+      onMouseEnter={() => { document.body.classList.add(DOCK_HOVERED_CLASS); clearCollapseTimer(); }}
+      onMouseLeave={() => { document.body.classList.remove(DOCK_HOVERED_CLASS); if (isOfficer && expanded) scheduleCollapse(); }}>
+      <div id="navigation-options" className={styles.actions} aria-hidden={!isOfficer || !expanded}>
+        <div className={styles.actionsInner}><OfficerActions activePage={activePage} context={officerContext} /></div>
+      </div>
       <div className={styles.destinations}>
         <a className={styles.leaderboard} href="#leaderboard" aria-current={activePage === 'leaderboard' ? 'page' : undefined} aria-label="Leaderboard">
-          <span className={styles.destinationLabel}>
-            <span>Leader</span><span>board</span>
-          </span>
+          <span className={styles.destinationLabel}><span>Leader</span><span>board</span></span>
         </a>
         <a className={styles.matches} href="#matches" aria-current={activePage === 'matches' ? 'page' : undefined} aria-label="Match History">
-          <span className={styles.destinationLabel}>
-            <span>Match</span>{' '}<span>History</span>
-          </span>
+          <span className={styles.destinationLabel}><span>Match</span>{' '}<span>History</span></span>
         </a>
-        {isOfficer && <button
-          ref={toggleRef}
-          type="button"
-          className={styles.toggle}
-          onClick={() => {
-            clearCollapseTimer();
-            setExpanded(!expanded);
-          }}
-          aria-label={expanded ? 'Collapse navigation options' : 'Expand navigation options'}
-          aria-controls="navigation-options"
-          aria-expanded={expanded}
-        >
-          <Icon name={expanded ? 'close' : 'more'} size={28} />
-        </button>}
+        <div className={styles.toggleSlot} aria-hidden={!isOfficer}>
+          <button ref={toggleRef} type="button" className={styles.toggle} disabled={!isOfficer}
+            tabIndex={isOfficer ? 0 : -1}
+            onClick={() => { clearCollapseTimer(); setExpanded((value) => !value); }}
+            aria-label={expanded ? 'Collapse navigation options' : 'Expand navigation options'}
+            aria-controls="navigation-options" aria-expanded={isOfficer && expanded}>
+            <Icon name={expanded ? 'close' : 'more'} size={28} />
+          </button>
+        </div>
       </div>
     </nav>
   );

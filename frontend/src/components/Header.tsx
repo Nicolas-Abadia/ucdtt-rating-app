@@ -1,46 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import Icon from './Icon';
+import { useAuth } from '../services/auth';
+import { AVATAR_COLORS } from '../styles/tokens';
 import styles from './Header.module.css';
 
 interface HeaderProps {
   title: string;
-  // Deterministic destination (e.g. "Back to leaderboard"), not history.back,
-  // so a direct link into a detail page never leaves the app.
   backLabel?: string;
   backHash?: string;
 }
 
-// The header button is the account menu (login for now). Navigation options
-// have their own toggle on the NavigationMenu dock.
-export default function Header({ title, backLabel, backHash }: HeaderProps) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  // Same-origin in production; the Vite dev proxy forwards /accounts to Django.
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+function officerColorIndex(username: string): number {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = (hash * 31 + username.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % AVATAR_COLORS.length;
+}
 
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    }
-    // pointerdown (not click) also catches the touch contact that starts a
-    // scroll, so the menu closes as soon as the page is scrolled away.
-    function onPointerDown(event: PointerEvent) {
-      if (!accountMenuRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('pointerdown', onPointerDown);
-    };
-  }, [open]);
+// The floating account control is navigation only. Logged out it displays the
+// hamburger; logged in it displays the officer avatar. Both states link to the
+// account page, which is the single home for login, session status and logout.
+export default function Header({ title, backLabel, backHash }: HeaderProps) {
+  const { username } = useAuth();
+  const colorIndex = username ? officerColorIndex(username) : 0;
+  const avatarStyle = {
+    '--avatar-bg': AVATAR_COLORS[colorIndex],
+    '--avatar-ink': colorIndex >= 3 ? 'var(--tone-black)' : 'var(--white)',
+  } as CSSProperties;
 
   return (
     <header className={styles.header}>
@@ -53,24 +40,20 @@ export default function Header({ title, backLabel, backHash }: HeaderProps) {
         )}
         <h1 className={styles.title} tabIndex={-1}>{title}</h1>
       </div>
-      <div className={styles.accountMenu} ref={accountMenuRef}>
-        <button
-          ref={buttonRef}
-          type="button"
-          className={styles.menuButton}
-          onClick={() => setOpen(!open)}
-          aria-label="Account menu"
-          aria-expanded={open}
-          aria-haspopup="true"
-        >
-          <Icon name={open ? 'close' : 'menu'} size={24} />
-        </button>
-        {open && (
-          <div className={styles.accountPanel}>
-            <a href={`${baseUrl}/accounts/login/`} onClick={() => setOpen(false)}>Officer login</a>
-          </div>
+
+      <a
+        href="#login"
+        className={`${styles.accountLink} ${username ? styles.officerLink : styles.menuLink}`}
+        aria-label={username ? `Open account page, logged in as ${username}` : 'Officer login'}
+      >
+        {username ? (
+          <span key={username} className={styles.officerAvatar} style={avatarStyle} aria-hidden="true">
+            {username.trim().charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <Icon name="menu" size={24} />
         )}
-      </div>
+      </a>
     </header>
   );
 }

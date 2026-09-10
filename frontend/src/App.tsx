@@ -4,6 +4,7 @@ import MatchHistoryPage from './features/MatchHistory/MatchHistoryPage';
 import PlayerProfilePage from './features/PlayerProfile/PlayerProfilePage';
 import MatchDetailPage from './features/MatchDetail/MatchDetailPage';
 import NotFoundPage from './components/NotFoundPage';
+import LoginPage from './features/Login/LoginPage';
 
 // Hash routes support refresh and Back/Forward on the static host without
 // adding a routing dependency or a deployment rewrite.
@@ -23,6 +24,7 @@ type Route =
   | { name: 'matches' }
   | { name: 'player'; id: number }
   | { name: 'match'; id: number }
+  | { name: 'login' }
   | { name: 'not-found' };
 
 function parseId(segment: string | undefined): number | null {
@@ -38,6 +40,7 @@ function parseRoute(hash: string): Route {
     const id = parseId(sub);
     return id === null ? { name: 'not-found' } : { name: 'match', id };
   }
+  if (head === 'login') return { name: 'login' };
   if (head === 'players') {
     const id = parseId(sub);
     return id === null ? { name: 'not-found' } : { name: 'player', id };
@@ -50,6 +53,7 @@ const titles: Record<Route['name'], string> = {
   matches: 'Match History',
   player: 'Player Profile',
   match: 'Match Detail',
+  login: 'Officer Login',
   'not-found': 'Not Found',
 };
 
@@ -70,6 +74,7 @@ export default function App() {
     case 'matches': return <MatchHistoryPage />;
     case 'player': return <PlayerProfilePage playerId={route.id} />;
     case 'match': return <MatchDetailPage matchId={route.id} />;
+    case 'login': return <LoginPage />;
     case 'not-found': return <NotFoundPage />;
     default: return <LeaderboardPage />;
   }

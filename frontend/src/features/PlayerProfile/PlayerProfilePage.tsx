@@ -16,7 +16,7 @@ export default function PlayerProfilePage({ playerId }: { playerId: number }) {
   const { data: profile, loading, error, notFound, retry } = useApiResource(profilePath(playerId), parseProfile);
 
   return (
-    <PageLayout title="Player Profile" activePage="leaderboard" backLabel="Back to leaderboard" backHash="#leaderboard">
+    <PageLayout title="Player Profile" activePage="leaderboard" backLabel="Back to leaderboard" backHash="#leaderboard" officerContext="player">
       {loading ? (
         <RequestState loading title="Loading player" message="The server may take a moment to respond." />
       ) : notFound ? (

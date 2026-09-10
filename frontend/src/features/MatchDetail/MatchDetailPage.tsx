@@ -16,7 +16,7 @@ export default function MatchDetailPage({ matchId }: { matchId: number }) {
   const { data: match, loading, error, notFound, retry } = useApiResource(matchDetailPath(matchId), parseMatchDetail);
 
   return (
-    <PageLayout title="Match Detail" activePage="matches" backLabel="Back to match history" backHash="#matches">
+    <PageLayout title="Match Detail" activePage="matches" backLabel="Back to match history" backHash="#matches" officerContext="match">
       {loading ? (
         <RequestState loading title="Loading match" message="The server may take a moment to respond." />
       ) : notFound ? (

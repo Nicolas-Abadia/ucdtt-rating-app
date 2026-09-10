@@ -9,25 +9,12 @@
   border-radius: var(--radius-dock);
   background: var(--tone-black);
   max-height: calc(100dvh - 32px);
-  /* overflow clips to the rounded corners, masking buttons that translate
-     downward on press so they never poke outside the dock. */
   overflow-x: hidden;
   overflow-y: auto;
 }
-/* Morph expansion: the row track animates 0fr -> 1fr so the dock grows
-   smoothly instead of the actions popping in. The gap lives inside
-   actionsInner so the collapsed height is truly zero. */
-.actions {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    margin-bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+.actions { display: grid; grid-template-rows: 0fr; margin-bottom: 0; }
 .actionsInner { overflow: hidden; min-height: 0; display: grid; gap: 10px; }
-.expanded .actions { grid-template-rows: 1fr; margin-bottom: 10px; }
-/* No explicit radius on "Add new player" in the Figma export; the top corners
-   follow the concentric rule (dock radius 35.5 - 6 padding = 29.5), matching
-   the destination tiles' outer corners. Bottom stays at the authored 17. */
+.officerDock.expanded .actions { grid-template-rows: 1fr; margin-bottom: 10px; }
 .actionsInner > .action:first-child { border-top-left-radius: 29.5px; border-top-right-radius: 29.5px; }
 .action {
   display: flex;
@@ -37,31 +24,47 @@
   gap: 8px;
   min-height: 46px;
   padding: 10px;
+  border: 0;
+  border-radius: 17px;
   background: var(--silent-black);
   color: var(--white);
-  border-radius: 17px;
+  font-family: inherit;
   font-size: var(--scale-2);
   font-weight: var(--weight-medium);
 }
+.dangerAction { background: var(--blood-red); }
 .destinations { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 4px; }
-.publicDock .destinations { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.publicDock .destinations { grid-template-columns: 1fr 1fr 0fr; }
+.toggleSlot {
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+.publicDock .toggleSlot {
+  opacity: 0;
+  transform: translateY(28px) scale(0.72);
+  visibility: hidden;
+}
 .publicDock .matches { border-top-right-radius: calc(var(--radius-dock) - 6px); border-bottom-right-radius: calc(var(--radius-dock) - 6px); }
-.dock button, .dock a { border: 0; font-family: inherit; }
 .dock button:disabled { cursor: not-allowed; }
 .dock small { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; }
-/* Explicit mobile lines avoid arbitrary breaks inside navigation labels. */
 .destinationLabel { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
 .destinationLabel > span { white-space: nowrap; }
 .leaderboard, .matches, .toggle {
   min-width: 0;
   min-height: 88px;
   padding: 10px;
+  border: 0;
   border-radius: 17px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
+  font-family: inherit;
   overflow-wrap: normal;
   word-break: normal;
   font-size: clamp(18px, 5.8vw, 24px);
@@ -71,7 +74,7 @@
 }
 .leaderboard { background: var(--night-sky-blue); color: var(--white); text-decoration: none; border-top-left-radius: calc(var(--radius-dock) - 6px); border-bottom-left-radius: calc(var(--radius-dock) - 6px); }
 .matches { background: var(--aggie-yellow); color: var(--tone-black); text-decoration: none; }
-.toggle { background: var(--white); color: var(--tone-black); cursor: pointer; border-top-right-radius: calc(var(--radius-dock) - 6px); border-bottom-right-radius: calc(var(--radius-dock) - 6px); }
+.toggle { width: 100%; background: var(--white); color: var(--tone-black); cursor: pointer; border-top-right-radius: calc(var(--radius-dock) - 6px); border-bottom-right-radius: calc(var(--radius-dock) - 6px); }
 .dock :focus-visible { outline: 3px solid var(--daylight-sky-blue); outline-offset: -5px; }
 @media (min-width: 768px) {
   .dock { width: 420px; }
@@ -81,27 +84,22 @@
   .destinationLabel { flex-direction: row; }
   .matches .destinationLabel { column-gap: 0.25em; }
 }
-
-/* A single, gently eased lift. Touch gets press feedback, not sticky hover. */
 @media (prefers-reduced-motion: no-preference) {
   .dock { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
-  .leaderboard, .matches, .toggle, .action:not(:disabled) {
-    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1.1);
-  }
+  .actions { transition: grid-template-rows 260ms cubic-bezier(0.2, 0.8, 0.2, 1), margin-bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .destinations { transition: grid-template-columns 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .toggleSlot { transition: opacity 180ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1.1), visibility 0s; }
+  .publicDock .toggleSlot { transition: opacity 180ms ease, transform 280ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 280ms; }
+  .leaderboard, .matches, .toggle, .action:not(:disabled) { transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1.1), border-radius 280ms ease; }
+  .officerDock.expanded .actionsInner > .action { animation: bubbleIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1.1) backwards; }
+  .officerDock.expanded .actionsInner > .action:nth-child(2) { animation-delay: 70ms; }
   @media (hover: hover) and (pointer: fine) {
-    /* Keep the centering transform while lifting the complete dock. */
-    .dock:hover {
-      transform: translateX(calc(-50% + var(--magnet-x, 0px)))
-        translateY(calc(var(--magnet-y, 0px) - 3px)) scale(1.02);
-    }
-    /* Nearly flat: a hint of lift, almost no grow. */
-    .leaderboard:hover, .matches:hover, .toggle:hover, .action:not(:disabled):hover {
-      transform: translateY(-1px) scale(1.005);
-    }
+    .dock:hover { transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(calc(var(--magnet-y, 0px) - 3px)) scale(1.02); }
+    .leaderboard:hover, .matches:hover, .toggle:hover, .action:not(:disabled):hover { transform: translateY(-1px) scale(1.005); }
   }
-  /* Pressed impression: the button sinks a little; the dock's overflow clip
-     masks it so nothing escapes the rounded shape. */
-  .leaderboard:active, .matches:active, .toggle:active, .action:not(:disabled):active {
-    transform: translateY(2px) scale(0.98);
-  }
+  .leaderboard:active, .matches:active, .toggle:active, .action:not(:disabled):active { transform: translateY(2px) scale(0.98); }
+}
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }

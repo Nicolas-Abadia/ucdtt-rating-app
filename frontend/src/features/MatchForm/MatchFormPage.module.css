@@ -1,0 +1,246 @@
+.form { display: flex; flex-direction: column; gap: 32px; padding-bottom: 104px; }
+.playerGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.playerEntry {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+}
+.playerEntry h2, .dateSection > label {
+  font-size: var(--scale-2);
+  font-weight: var(--weight-extra-bold);
+  text-transform: uppercase;
+}
+.playerCard, .playerOption {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 22px 16px;
+  border: var(--match-card-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  box-shadow: var(--match-card-shadow);
+  color: var(--text-main);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.playerCard[aria-invalid="true"] { border-color: var(--blood-red); box-shadow: 0 5px 0 var(--blood-red); }
+.emptyPlayer { min-height: 177px; justify-content: center; color: var(--text-muted); }
+.emptyName { width: min(84%, 150px); height: 24px; border-radius: 8px; background: var(--bg-primary); }
+.emptyId { font-size: var(--scale-1); font-weight: var(--weight-extra-bold); text-transform: uppercase; }
+.avatar, .emptyAvatar {
+  width: 70px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: var(--avatar-bg);
+  color: var(--avatar-ink);
+  font-size: var(--scale-4);
+  font-weight: var(--weight-black);
+}
+.emptyAvatar { background: var(--bg-primary); color: transparent; }
+.playerName { max-width: 100%; font-size: var(--scale-3); font-weight: var(--weight-black); overflow-wrap: anywhere; }
+.playerMeta { color: var(--text-muted); font-size: var(--scale-1); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.playerMeta strong { color: var(--daylight-sky-blue); }
+.scoreField { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px; }
+.scoreLabel { color: var(--text-muted); font-size: var(--scale-2); font-weight: var(--weight-extra-bold); text-transform: uppercase; }
+.stepper { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; }
+.stepper button {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border: 4px solid var(--aggie-yellow);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--scale-3);
+  font-weight: var(--weight-black);
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper input {
+  width: 58px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--scale-4);
+  font-weight: var(--weight-black);
+  text-align: center;
+}
+.stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.dateSection { display: flex; flex-direction: column; gap: 12px; }
+.dateRow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.dateRow input, .currentTime {
+  min-width: 0;
+  min-height: 54px;
+  padding: 13px 16px;
+  border: var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  color-scheme: light;
+  font: inherit;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-extra-bold);
+}
+.currentTime {
+  width: 100%;
+  border-color: var(--night-sky-blue);
+  background: var(--night-sky-blue);
+  color: var(--white);
+  cursor: pointer;
+}
+.formActions { display: flex; flex-direction: column-reverse; gap: 12px; }
+.cancel, .submit, .deleteButton, .secondaryLink {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-radius: var(--radius-card);
+  font: inherit;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-black);
+  text-decoration: none;
+  text-align: center;
+}
+.cancel { border: var(--control-border); background: var(--bg-surface); color: var(--text-main); }
+.submit { border: 2px solid var(--aggie-yellow); background: var(--aggie-yellow); color: var(--tone-black); cursor: pointer; }
+.deleteButton { border: 2px solid var(--blood-red); background: var(--blood-red); color: var(--white); cursor: pointer; }
+.submit:disabled, .deleteButton:disabled { opacity: 0.55; cursor: wait; }
+.fieldError { color: var(--rating-loss); font-size: var(--scale-2); line-height: 1.4; }
+.formError { padding: 14px 16px; border-left: 4px solid var(--blood-red); border-radius: 8px; background: var(--bg-surface); color: var(--rating-loss); line-height: 1.5; }
+.formActionDock {
+  position: fixed;
+  z-index: 45;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(360px, calc(100% - 42px));
+  padding: 6px;
+  border-radius: var(--radius-dock);
+  background: var(--tone-black);
+  transform: translateX(-50%);
+}
+.formActionDock.attention { box-shadow: 0 0 18px 2px rgb(220 180 11 / 0.35); }
+.formActionDock .submit {
+  width: 100%;
+  min-width: 0;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: calc(var(--radius-dock) - 6px);
+  background: var(--aggie-yellow);
+  color: var(--tone-black);
+  font: inherit;
+  font-size: var(--scale-3);
+  font-weight: var(--weight-black);
+  cursor: pointer;
+}
+.formActionDock .submit:disabled {
+  background: var(--silent-black);
+  color: var(--pigeon-gray);
+  cursor: not-allowed;
+}
+.submitArrow { flex: 0 0 auto; display: grid; place-items: center; }
+.messagePanel, .deletePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(22px, 6vw, 36px);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  line-height: 1.55;
+}
+.messagePanel h2, .deletePanel h2 { font-size: var(--scale-3); }
+.secondaryLink { align-self: flex-start; border: 2px solid var(--night-sky-blue); background: var(--night-sky-blue); color: var(--white); }
+.dangerLabel { align-self: flex-start; padding: 6px 10px; border-radius: 999px; background: var(--blood-red); color: var(--white); font-size: var(--scale-1); font-weight: var(--weight-black); text-transform: uppercase; }
+.deleteSummary { display: grid; gap: 10px; padding: 16px; border: var(--control-border); border-radius: var(--radius-card); }
+.deleteSummary > div { display: flex; justify-content: space-between; gap: 16px; }
+.deleteSummary dt { color: var(--text-muted); font-weight: var(--weight-extra-bold); }
+.deleteSummary dd { text-align: right; font-weight: var(--weight-extra-bold); }
+.pickerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  align-items: stretch;
+  background: rgb(0 0 0 / 0.62);
+}
+.picker {
+  min-width: 0;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 21px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  background: var(--bg-primary);
+  color: var(--text-main);
+}
+.pickerHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pickerHeader h2 { font-size: var(--scale-3); text-transform: uppercase; }
+.closePicker {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border: var(--control-border);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.playerOptions { list-style: none; display: grid; gap: 14px; }
+.playerOption { flex-direction: row; justify-content: flex-start; text-align: left; box-shadow: none; padding: 14px; }
+.playerOption .avatar { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 17px; font-size: var(--scale-3); }
+.playerOption .playerName { flex: 1; font-size: var(--scale-2); }
+.playerOption .playerMeta { flex: 0 0 auto; }
+.selectedOption { outline: 3px solid var(--daylight-sky-blue); outline-offset: 2px; }
+.noPlayers { padding: 32px 12px; color: var(--text-muted); text-align: center; }
+.form :focus-visible, .picker :focus-visible, .messagePanel :focus-visible, .deletePanel :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+@media (prefers-color-scheme: dark) { .dateRow input { color-scheme: dark; } }
+@media (min-width: 700px) {
+  .playerGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .formActions { flex-direction: row; justify-content: flex-end; }
+  .cancel, .submit, .deleteButton { min-width: 180px; }
+  .pickerBackdrop { place-items: center; padding: 28px; }
+  .picker { width: min(650px, 100%); max-height: min(760px, calc(100dvh - 56px)); border-radius: var(--radius-card); box-shadow: 0 18px 60px rgb(0 0 0 / 0.34); }
+}
+@keyframes formBreath {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 14px 1px rgb(220 180 11 / 0.35);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.025);
+    box-shadow: 0 0 32px 6px rgb(220 180 11 / 0.45);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .formActionDock.attention { animation: formBreath 2.8s ease-in-out infinite; }
+  .playerCard, .playerOption, .currentTime, .cancel, .submit, .deleteButton, .secondaryLink {
+    transition: transform 150ms ease, background-color 150ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .playerCard:hover, .playerOption:hover, .currentTime:hover, .cancel:hover, .secondaryLink:hover { transform: translateY(-1px); }
+  }
+  .playerCard:active, .playerOption:active, .currentTime:active, .cancel:active, .submit:active, .deleteButton:active { transform: translateY(2px) scale(0.99); }
+}

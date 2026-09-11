@@ -12,16 +12,21 @@ interface PageLayoutProps {
   backHash?: string;
   // Page actions belong to the navigation dock, not the account control.
   officerContext?: 'player' | 'match';
+  officerResourceId?: number;
+  showOfficerActions?: boolean;
+  showNavigation?: boolean;
 }
 
-export default function PageLayout({ title, activePage, children, backLabel, backHash, officerContext }: PageLayoutProps) {
+export default function PageLayout({ title, activePage, children, backLabel, backHash,
+  officerContext, officerResourceId, showOfficerActions = true, showNavigation = true }: PageLayoutProps) {
   const { username } = useAuth();
   const isOfficer = username !== null;
   return (
     <div id={activePage} className={styles.page}>
       <Header title={title} backLabel={backLabel} backHash={backHash} />
       <main className={styles.main}>{children}</main>
-      <NavigationMenu activePage={activePage} isOfficer={isOfficer} officerContext={officerContext} />
+      {showNavigation && <NavigationMenu activePage={activePage} isOfficer={isOfficer && showOfficerActions}
+        officerContext={officerContext} officerResourceId={officerResourceId} />}
     </div>
   );
 }

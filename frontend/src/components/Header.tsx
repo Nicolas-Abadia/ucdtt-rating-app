@@ -18,9 +18,10 @@ function officerColorIndex(username: string): number {
   return Math.abs(hash) % AVATAR_COLORS.length;
 }
 
-// The floating account control is navigation only. Logged out it displays the
-// hamburger; logged in it displays the officer avatar. Both states link to the
-// account page, which is the single home for login, session status and logout.
+// The account control is navigation only. The logged-out hamburger remains
+// viewport-fixed; the logged-in officer avatar sits in the header and scrolls
+// away with it. Both states link to the account page, the single home for
+// login, session status and logout.
 export default function Header({ title, backLabel, backHash }: HeaderProps) {
   const { username } = useAuth();
   const colorIndex = username ? officerColorIndex(username) : 0;

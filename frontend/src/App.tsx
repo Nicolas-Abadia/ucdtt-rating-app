@@ -5,6 +5,7 @@ import PlayerProfilePage from './features/PlayerProfile/PlayerProfilePage';
 import MatchDetailPage from './features/MatchDetail/MatchDetailPage';
 import NotFoundPage from './components/NotFoundPage';
 import LoginPage from './features/Login/LoginPage';
+import MatchFormPage from './features/MatchForm/MatchFormPage';
 
 // Hash routes support refresh and Back/Forward on the static host without
 // adding a routing dependency or a deployment rewrite.
@@ -24,6 +25,8 @@ type Route =
   | { name: 'matches' }
   | { name: 'player'; id: number }
   | { name: 'match'; id: number }
+  | { name: 'match-new' }
+  | { name: 'match-edit'; id: number }
   | { name: 'login' }
   | { name: 'not-found' };
 
@@ -32,16 +35,20 @@ function parseId(segment: string | undefined): number | null {
 }
 
 function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#/, '');
-  const [head, sub] = path.split('/');
-  if (!head || head === 'leaderboard') return { name: 'leaderboard' };
+  const segments = hash.replace(/^#/, '').split('/').filter(Boolean);
+  const [head, sub, action] = segments;
+  if (segments.length === 0 || (head === 'leaderboard' && segments.length === 1)) return { name: 'leaderboard' };
   if (head === 'matches') {
-    if (sub === undefined) return { name: 'matches' };
+    if (segments.length === 1) return { name: 'matches' };
+    if (sub === 'new' && segments.length === 2) return { name: 'match-new' };
     const id = parseId(sub);
-    return id === null ? { name: 'not-found' } : { name: 'match', id };
+    if (id === null) return { name: 'not-found' };
+    if (segments.length === 2) return { name: 'match', id };
+    if (segments.length === 3 && action === 'edit') return { name: 'match-edit', id };
+    return { name: 'not-found' };
   }
-  if (head === 'login') return { name: 'login' };
-  if (head === 'players') {
+  if (head === 'login' && segments.length === 1) return { name: 'login' };
+  if (head === 'players' && segments.length === 2) {
     const id = parseId(sub);
     return id === null ? { name: 'not-found' } : { name: 'player', id };
   }
@@ -53,6 +60,8 @@ const titles: Record<Route['name'], string> = {
   matches: 'Match History',
   player: 'Player Profile',
   match: 'Match Detail',
+  'match-new': 'Log Match',
+  'match-edit': 'Edit Match',
   login: 'Officer Login',
   'not-found': 'Not Found',
 };
@@ -74,6 +83,8 @@ export default function App() {
     case 'matches': return <MatchHistoryPage />;
     case 'player': return <PlayerProfilePage playerId={route.id} />;
     case 'match': return <MatchDetailPage matchId={route.id} />;
+    case 'match-new': return <MatchFormPage />;
+    case 'match-edit': return <MatchFormPage matchId={route.id} />;
     case 'login': return <LoginPage />;
     case 'not-found': return <NotFoundPage />;
     default: return <LeaderboardPage />;

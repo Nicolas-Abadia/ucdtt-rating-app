@@ -1,4 +1,4 @@
-type IconName = 'menu' | 'close' | 'search' | 'more' | 'plus' | 'upload' | 'rating' | 'win' | 'loss' | 'back' | 'edit' | 'trash' | 'user' | 'logout';
+type IconName = 'menu' | 'close' | 'search' | 'more' | 'plus' | 'upload' | 'rating' | 'win' | 'loss' | 'back' | 'edit' | 'trash' | 'user' | 'logout' | 'arrow';
 
 export default function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return (
@@ -16,6 +16,7 @@ export default function Icon({ name, size = 20 }: { name: IconName; size?: numbe
       {name === 'edit' && <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />}
       {name === 'trash' && <><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></>}
       {name === 'user' && <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></>}
+      {name === 'arrow' && <path d="M5 12h14m-6-6 6 6-6 6" />}
       {name === 'logout' && <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>}
     </svg>
   );

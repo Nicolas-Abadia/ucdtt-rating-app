@@ -31,8 +31,62 @@
   font-family: inherit;
   font-size: var(--scale-2);
   font-weight: var(--weight-medium);
+  text-decoration: none;
+  cursor: pointer;
 }
 .dangerAction { background: var(--blood-red); }
+.dock[data-accent='gold'] { --dock-glow: rgb(220 180 11 / 0.35); }
+.dock[data-accent='red'] { --dock-glow: rgb(250 46 46 / 0.35); }
+.dock[data-accent='blue'] { --dock-glow: rgb(51 51 181 / 0.45); }
+.attention { box-shadow: 0 0 18px 2px var(--dock-glow); }
+.deleteConfirmation { display: grid; gap: 8px; }
+.confirmDelete {
+  width: 100%;
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: calc(var(--radius-dock) - 6px);
+  background: var(--blood-red);
+  color: var(--white);
+  font: inherit;
+  font-size: var(--scale-3);
+  font-weight: var(--weight-black);
+  cursor: pointer;
+}
+.confirmDelete:disabled { opacity: 0.65; }
+.confirmationError {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--silent-black);
+  color: var(--white);
+  font-size: var(--scale-1);
+  line-height: 1.35;
+  text-align: center;
+}
+.primaryActionWrap { display: grid; }
+.primaryAction {
+  width: 100%;
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: calc(var(--radius-dock) - 6px);
+  background: var(--aggie-yellow);
+  color: var(--tone-black);
+  font: inherit;
+  font-size: var(--scale-3);
+  font-weight: var(--weight-black);
+  cursor: pointer;
+}
+.primaryBlue { background: var(--night-sky-blue); color: var(--white); }
+.primaryAction:disabled { background: var(--silent-black); color: var(--pigeon-gray); }
 .destinations { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 4px; }
 .publicDock .destinations { grid-template-columns: 1fr 1fr 0fr; }
 .toggleSlot {
@@ -90,16 +144,33 @@
   .destinations { transition: grid-template-columns 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
   .toggleSlot { transition: opacity 180ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1.1), visibility 0s; }
   .publicDock .toggleSlot { transition: opacity 180ms ease, transform 280ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 280ms; }
-  .leaderboard, .matches, .toggle, .action:not(:disabled) { transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1.1), border-radius 280ms ease; }
+  .leaderboard, .matches, .toggle, .action:not(:disabled), .confirmDelete:not(:disabled), .primaryAction:not(:disabled) {
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1.1), border-radius 280ms ease;
+  }
+  .attention { animation: dockBreath 2.8s ease-in-out infinite; }
   .officerDock.expanded .actionsInner > .action { animation: bubbleIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1.1) backwards; }
   .officerDock.expanded .actionsInner > .action:nth-child(2) { animation-delay: 70ms; }
   @media (hover: hover) and (pointer: fine) {
     .dock:hover { transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(calc(var(--magnet-y, 0px) - 3px)) scale(1.02); }
-    .leaderboard:hover, .matches:hover, .toggle:hover, .action:not(:disabled):hover { transform: translateY(-1px) scale(1.005); }
+    .leaderboard:hover, .matches:hover, .toggle:hover, .action:not(:disabled):hover, .confirmDelete:not(:disabled):hover, .primaryAction:not(:disabled):hover {
+      transform: translateY(-1px) scale(1.005);
+    }
   }
-  .leaderboard:active, .matches:active, .toggle:active, .action:not(:disabled):active { transform: translateY(2px) scale(0.98); }
+  .leaderboard:active, .matches:active, .toggle:active, .action:not(:disabled):active, .confirmDelete:not(:disabled):active, .primaryAction:not(:disabled):active {
+    transform: translateY(2px) scale(0.98);
+  }
 }
 @keyframes bubbleIn {
   from { opacity: 0; transform: translateY(10px) scale(0.9); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dockBreath {
+  0%, 100% {
+    transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px)) scale(1);
+    box-shadow: 0 0 14px 1px var(--dock-glow);
+  }
+  50% {
+    transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px)) scale(1.025);
+    box-shadow: 0 0 32px 6px var(--dock-glow);
+  }
 }

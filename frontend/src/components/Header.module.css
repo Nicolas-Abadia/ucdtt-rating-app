@@ -27,8 +27,9 @@
 .backLink:hover { color: var(--text-main); }
 .backLink:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; border-radius: 8px; }
 
-/* One circular link fixed to the viewport. It never expands or owns session
-   actions; the account page is the only login/logout surface. */
+/* The logged-out hamburger stays viewport-fixed. The logged-in officer link
+   overrides this positioning and remains in the header flow. Neither control
+   expands or owns session actions. */
 .accountLink {
   position: fixed;
   top: 55px;
@@ -46,7 +47,11 @@
   background: var(--bg-header-control);
   color: var(--text-main);
 }
-.officerLink { background: transparent; }
+.officerLink {
+  position: static;
+  flex: 0 0 auto;
+  background: transparent;
+}
 .accountLink:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; }
 .officerAvatar {
   width: 100%;

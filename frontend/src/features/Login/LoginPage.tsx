@@ -1,14 +1,19 @@
+import { useState } from 'react';
 import Header from '../../components/Header';
 import LoginForm from '../../components/LoginForm';
+import NavigationMenu from '../../components/NavigationMenu';
 import { useAuth } from '../../services/auth';
 import styles from './LoginPage.module.css';
 
-// The standalone officer sign-in screen. Mobile routes here from the header
-// account button; desktop keeps the header dropdown but can still reach this
-// page directly. After a successful login the officer returns to the
-// leaderboard, where the officer controls are now unlocked.
+const LOGIN_FORM_ID = 'officer-login-form';
+
+// The standalone officer sign-in screen. The navigation dock stays visible and
+// owns the login action: it breathes with a blue glow once both credentials
+// are filled, matching the other confirmation flows. After a successful login
+// the officer returns to the leaderboard, where officer controls are unlocked.
 export default function LoginPage() {
   const { username } = useAuth();
+  const [loginState, setLoginState] = useState({ canSubmit: false, busy: false });
 
   function goHome() {
     window.location.hash = '#leaderboard';
@@ -25,9 +30,19 @@ export default function LoginPage() {
               ? 'You have officer access. Log matches and manage players from any page.'
               : 'Log in with your officer credentials to log matches and manage players.'}
           </p>
-          <LoginForm autoFocus onSuccess={goHome} />
+          <LoginForm autoFocus formId={LOGIN_FORM_ID} externalSubmit={!username}
+            onStateChange={setLoginState} onSuccess={goHome} />
         </div>
       </main>
+      <NavigationMenu activePage="leaderboard" isOfficer={username !== null}
+        primaryAction={username ? undefined : {
+          label: 'Officer login',
+          activeLabel: 'Logging in…',
+          accent: 'blue',
+          disabled: !loginState.canSubmit,
+          busy: loginState.busy,
+          form: LOGIN_FORM_ID,
+        }} />
     </div>
   );
 }

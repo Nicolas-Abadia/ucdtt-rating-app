@@ -2,7 +2,7 @@
   min-height: 100vh;
   background: var(--bg-primary);
   color: var(--text-main);
-  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
 }
 .main { width: min(calc(100% - 42px), 420px); margin: 48px auto 0; }
 .card {

@@ -264,3 +264,54 @@ class CsvImportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Match.objects.count(), 1)
         self.assertEqual(Player.objects.get(name="Alice").display_rating, 1216)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class BatchDeleteTests(TestCase):
+    """Officer multi-delete: skipped rows never block the rest of the batch."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.officer = User.objects.create_user("officer")
+        self.a = Player.objects.create(name="Alice")
+        self.b = Player.objects.create(name="Ben")
+        self.c = Player.objects.create(name="Carla")
+        self.day = timezone.now() - timedelta(days=1)
+
+    def test_anonymous_batch_delete_is_rejected(self):
+        response = self.client.post("/api/players/batch-delete/", {"ids": [self.a.pk]}, format="json")
+        self.assertEqual(response.status_code, 401)
+        response = self.client.post("/api/matches/batch-delete/", {"ids": [1]}, format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Player.objects.count(), 3)
+
+    def test_invalid_ids_are_a_400(self):
+        self.client.force_authenticate(self.officer)
+        for payload in ({}, {"ids": []}, {"ids": ["x"]}, {"ids": [-1]}, {"ids": [True]}):
+            with self.subTest(payload=payload):
+                response = self.client.post("/api/players/batch-delete/", payload, format="json")
+                self.assertEqual(response.status_code, 400)
+
+    def test_players_with_matches_are_skipped(self):
+        Match.objects.create(player1=self.a, player2=self.b, score1=11, score2=7, date=self.day)
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/players/batch-delete/",
+            {"ids": [self.a.pk, self.c.pk, 99999]}, format="json")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([row["id"] for row in payload["deleted"]], [self.c.pk])
+        self.assertEqual(len(payload["skipped"]), 2)
+        self.assertTrue(Player.objects.filter(pk=self.a.pk).exists())
+        self.assertFalse(Player.objects.filter(pk=self.c.pk).exists())
+
+    def test_match_batch_delete_recomputes_ratings_once(self):
+        first = Match.objects.create(player1=self.a, player2=self.b, score1=11, score2=7, date=self.day)
+        second = Match.objects.create(player1=self.c, player2=self.a, score1=9, score2=11,
+            date=self.day + timedelta(minutes=1))
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/matches/batch-delete/",
+            {"ids": [first.pk, second.pk]}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 0)
+        self.assertEqual(Player.objects.get(pk=self.a.pk).display_rating, 1200)
+        self.assertEqual(Player.objects.get(pk=self.c.pk).display_rating, 1200)

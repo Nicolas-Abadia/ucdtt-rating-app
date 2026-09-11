@@ -1,12 +1,13 @@
 import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import Icon from '../../components/Icon';
+import OfficerRequired from '../../components/OfficerRequired';
 import PageLayout from '../../components/PageLayout';
 import RequestState from '../../components/RequestState';
-import { ApiError } from '../../services/api';
+import { ApiError, messageFrom, record } from '../../services/api';
 import { authFetch, useAuth } from '../../services/auth';
 import useApiResource from '../../services/useApiResource';
 import useMagneticDock from '../../services/useMagneticDock';
-import { AVATAR_COLORS } from '../../styles/tokens';
+import { AVATAR_COLORS, nameColorIndex } from '../../styles/tokens';
 import dock from '../../components/FormDock.module.css';
 import styles from './PlayerFormPage.module.css';
 
@@ -49,10 +50,6 @@ const GRIP_SEGMENTS = GRIP_OPTIONS.filter((option) => option.value !== '');
 
 const registeredFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
 function parsePlayer(value: unknown): PlayerRecord {
   if (!record(value) || !Number.isInteger(value.id) || typeof value.name !== 'string'
     || !Number.isInteger(value.initial_rating)
@@ -61,15 +58,6 @@ function parsePlayer(value: unknown): PlayerRecord {
     throw new Error('The API did not return the player.');
   }
   return value as unknown as PlayerRecord;
-}
-
-function messageFrom(value: unknown): string | null {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) {
-    const messages = value.map(messageFrom).filter((item): item is string => item !== null);
-    return messages.length ? messages.join(' ') : null;
-  }
-  return null;
 }
 
 function apiErrors(value: unknown): { fields: FieldErrors; general: string | null } {
@@ -89,17 +77,6 @@ function apiErrors(value: unknown): { fields: FieldErrors; general: string | nul
   return { fields, general: general.join(' ') || null };
 }
 
-// New players have no id yet, so the preview colors a typed name the same way
-// the officer avatar hashes a username. Once created, the card switches to the
-// id-based color used everywhere else.
-function nameColorIndex(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % AVATAR_COLORS.length;
-}
-
 export default function PlayerFormPage({ playerId }: PlayerFormPageProps) {
   const { username } = useAuth();
   const editing = playerId !== undefined;
@@ -108,23 +85,13 @@ export default function PlayerFormPage({ playerId }: PlayerFormPageProps) {
       backLabel={editing ? 'Back to player profile' : 'Back to leaderboard'}
       backHash={editing ? `#players/${playerId}` : '#leaderboard'} showNavigation={false}>
       {!username ? (
-        <OfficerRequired />
+        <OfficerRequired message="Log in with an officer account before changing player records." />
       ) : editing ? (
         <EditPlayerForm playerId={playerId} />
       ) : (
         <PlayerEditor />
       )}
     </PageLayout>
-  );
-}
-
-function OfficerRequired() {
-  return (
-    <section className={styles.messagePanel}>
-      <h2>Officer login required</h2>
-      <p>Log in with an officer account before changing player records.</p>
-      <a href="#login" className={styles.secondaryLink}>Open officer login</a>
-    </section>
   );
 }
 
@@ -162,7 +129,7 @@ function PreviewCard({ draft, player }: { draft: PlayerDraft; player?: PlayerRec
           <div className={styles.previewAvatar} style={avatarStyle} aria-hidden="true">
             {name.charAt(0).toUpperCase()}
           </div>
-          <span className={styles.previewName}>{name}</span>
+          <span className={styles.previewName} title={name}>{name}</span>
         </>
       )}
       <span className={styles.previewId}>ID: <span className={styles.previewUcdttId}>{player ? player.id : '—'}</span></span>

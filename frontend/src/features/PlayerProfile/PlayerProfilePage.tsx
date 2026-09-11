@@ -52,7 +52,7 @@ function ProfileContent({ profile, playerId }: { profile: PlayerProfile; playerI
             </div>
             <span className={styles.rankBadge} aria-label={`Rank ${profile.rank}`}>#{profile.rank}</span>
           </div>
-          <h2 className={styles.name}>{profile.name}</h2>
+          <h2 className={styles.name} title={profile.name}>{profile.name}</h2>
           <span className={styles.playerId}>ID: <span className={styles.ucdttId}>{profile.id}</span></span>
           <dl className={styles.attributes}>
             <div><dt>Style</dt><dd>{profile.style}</dd></div>

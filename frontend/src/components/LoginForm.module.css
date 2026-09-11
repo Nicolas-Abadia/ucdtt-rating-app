@@ -25,8 +25,6 @@
 }
 .loginForm input:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 2px; }
 .loginError { font-size: 12px; color: var(--rating-loss); }
-.dark label { color: var(--gray-400); }
-.dark input { background: var(--tone-black); color: var(--white); }
 .session { display: flex; flex-direction: column; gap: 16px; }
 .panelText { font-size: var(--scale-2); color: var(--text-muted); }
 .panelText strong { color: var(--text-main); }

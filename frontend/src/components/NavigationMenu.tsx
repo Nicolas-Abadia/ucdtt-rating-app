@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../services/api';
 import { authFetch } from '../services/auth';
 import useMagneticDock from '../services/useMagneticDock';
+import BatchDeletePicker from './BatchDeletePicker';
 import Icon from './Icon';
 import styles from './NavigationMenu.module.css';
 
@@ -33,11 +34,12 @@ export interface NavigationPrimaryAction {
   onClick?: () => void;
 }
 
-function OfficerActions({ activePage, context, resourceId, onRequestDelete }: {
+function OfficerActions({ activePage, context, resourceId, onRequestDelete, onBatchDelete }: {
   activePage: 'leaderboard' | 'matches';
   context?: 'player' | 'match';
   resourceId?: number;
   onRequestDelete: () => void;
+  onBatchDelete: () => void;
 }) {
   if (context === 'player' && resourceId !== undefined) {
     return <>
@@ -62,6 +64,9 @@ function OfficerActions({ activePage, context, resourceId, onRequestDelete }: {
       <a href="#players/new" className={styles.action}><Icon name="plus" />Add new player</a>
     )}
     <a href={activePage === 'matches' ? '#import/matches' : '#import'} className={styles.action}><Icon name="upload" />Import CSV</a>
+    <button type="button" className={`${styles.action} ${styles.dangerAction}`} onClick={onBatchDelete}>
+      <Icon name="trash" />{activePage === 'matches' ? 'Delete matches' : 'Delete players'}
+    </button>
   </>;
 }
 
@@ -73,6 +78,7 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteRef = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLElement>(null);
@@ -103,6 +109,17 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
     setExpanded(false);
     setDeleteError(null);
     setConfirmingDelete(true);
+  }
+
+  function openBatchDelete() {
+    clearCollapseTimer();
+    // The picker's list items must stay clickable: the hovered-dock guard
+    // disables pointer events on list items page-wide until mouseleave.
+    document.body.classList.remove(DOCK_HOVERED_CLASS);
+    setExpanded(false);
+    setConfirmingDelete(false);
+    setDeleteError(null);
+    setBatchOpen(true);
   }
 
   const deleteConfig = officerResourceId === undefined ? null
@@ -169,6 +186,7 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
       setExpanded(false);
       setConfirmingDelete(false);
       setDeleteError(null);
+      setBatchOpen(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isOfficer]);
@@ -242,7 +260,7 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
           <div id="navigation-options" className={styles.actions} aria-hidden={!isOfficer || !expanded}>
             <div className={styles.actionsInner}>
               <OfficerActions activePage={activePage} context={officerContext}
-                resourceId={officerResourceId} onRequestDelete={requestDelete} />
+                resourceId={officerResourceId} onRequestDelete={requestDelete} onBatchDelete={openBatchDelete} />
             </div>
           </div>
           <div className={styles.destinations}>
@@ -263,6 +281,10 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
             </div>
           </div>
         </>
+      )}
+      {batchOpen && (
+        <BatchDeletePicker kind={activePage === 'matches' ? 'matches' : 'players'}
+          onClose={() => setBatchOpen(false)} />
       )}
     </nav>
   );

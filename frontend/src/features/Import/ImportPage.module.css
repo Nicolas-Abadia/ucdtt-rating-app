@@ -65,8 +65,8 @@
 }
 .fileCardPicked .fileName { flex: 1; }
 .fileCard[aria-invalid="true"] { border-color: var(--blood-red); box-shadow: 0 5px 0 var(--blood-red); }
-.fileName { max-width: 100%; font-size: var(--scale-2); font-weight: var(--weight-black); overflow-wrap: anywhere; }
-.fileHint { color: var(--text-muted); font-size: var(--scale-1); overflow-wrap: anywhere; }
+.fileName { max-width: 100%; font-size: var(--scale-2); font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fileHint { max-width: 100%; color: var(--text-muted); font-size: var(--scale-1); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .previewSection { display: flex; flex-direction: column; gap: 16px; }
 .previewHeading { font-size: var(--scale-2); font-weight: var(--weight-extra-bold); text-transform: uppercase; }
@@ -139,34 +139,7 @@
 .note { color: var(--text-muted); font-size: var(--scale-1); line-height: 1.45; }
 .fieldError { color: var(--rating-loss); font-size: var(--scale-2); line-height: 1.4; }
 .formError { padding: 14px 16px; border-left: 4px solid var(--blood-red); border-radius: 8px; background: var(--bg-surface); color: var(--rating-loss); line-height: 1.5; }
-.messagePanel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: clamp(22px, 6vw, 36px);
-  border-radius: var(--radius-card);
-  background: var(--bg-surface);
-  line-height: 1.55;
-}
-.messagePanel h2 { font-size: var(--scale-3); }
-.secondaryLink {
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  padding: 12px 20px;
-  border: 2px solid var(--night-sky-blue);
-  border-radius: var(--radius-card);
-  background: var(--night-sky-blue);
-  color: var(--white);
-  font: inherit;
-  font-size: var(--scale-2);
-  font-weight: var(--weight-black);
-  text-decoration: none;
-  text-align: center;
-}
-.form :focus-visible, .messagePanel :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+.form :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
 @media (min-width: 768px) {
   .matchCard { min-height: 90px; gap: 20px; padding: 12px 20px; }
   .score { font-size: var(--scale-5); }
@@ -176,9 +149,9 @@
   .playerAvatar { flex-basis: 35px; width: 35px; height: 35px; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .fileCard, .secondaryLink { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+  .fileCard { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
   @media (hover: hover) and (pointer: fine) {
-    .fileCard:hover, .secondaryLink:hover { transform: translateY(-1px); }
+    .fileCard:hover { transform: translateY(-1px); }
   }
-  .fileCard:active, .secondaryLink:active { transform: translateY(2px) scale(0.99); }
+  .fileCard:active { transform: translateY(2px) scale(0.99); }
 }

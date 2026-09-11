@@ -1,22 +1,18 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import Icon from '../../components/Icon';
+import OfficerRequired from '../../components/OfficerRequired';
 import PageLayout from '../../components/PageLayout';
-import { ApiError } from '../../services/api';
+import { ApiError, messageFrom, record } from '../../services/api';
 import { authFetch, useAuth } from '../../services/auth';
 import useMagneticDock from '../../services/useMagneticDock';
-import { AVATAR_COLORS } from '../../styles/tokens';
+import { AVATAR_COLORS, nameColorIndex } from '../../styles/tokens';
 import dock from '../../components/FormDock.module.css';
+import { parsePreview, type MatchPreviewRow, type PlayerPreviewRow, type PreviewPayload, type SkippedRow } from './api';
 import styles from './ImportPage.module.css';
 
 export type ImportKind = 'players' | 'matches';
 
 interface ImportPageProps { kind: ImportKind }
-
-interface SkippedRow { line: number; reason: string }
-interface PlayerPreviewRow { name: string; rating: number }
-interface MatchPreviewRow { player1: string; player2: string; score1: number; score2: number; date: string }
-type PreviewRow = PlayerPreviewRow | MatchPreviewRow;
-interface PreviewPayload { filename: string; rows: PreviewRow[]; skipped: SkippedRow[] }
 
 // Instruction text matches the HTML importer (players/views.py).
 const KIND_CONFIG: Record<ImportKind, {
@@ -50,69 +46,6 @@ const KIND_CONFIG: Record<ImportKind, {
 
 const previewDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function messageFrom(value: unknown): string | null {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) {
-    const messages = value.map(messageFrom).filter((item): item is string => item !== null);
-    return messages.length ? messages.join(' ') : null;
-  }
-  return null;
-}
-
-function parseSkipped(value: unknown): SkippedRow[] {
-  if (!Array.isArray(value)) throw new Error('The API did not return skipped rows.');
-  return value.map((row) => {
-    if (!record(row) || !Number.isInteger(row.line) || typeof row.reason !== 'string') {
-      throw new Error('The API did not return skipped rows.');
-    }
-    return { line: row.line, reason: row.reason };
-  });
-}
-
-function parsePlayerRow(value: unknown): PlayerPreviewRow {
-  if (!record(value) || typeof value.name !== 'string' || !Number.isInteger(value.rating)) {
-    throw new Error('The API did not return the import preview.');
-  }
-  return { name: value.name, rating: value.rating };
-}
-
-function parseMatchRow(value: unknown): MatchPreviewRow {
-  if (!record(value) || typeof value.player1 !== 'string' || typeof value.player2 !== 'string'
-    || !Number.isInteger(value.score1) || !Number.isInteger(value.score2)
-    || typeof value.date !== 'string' || !Number.isFinite(Date.parse(value.date))) {
-    throw new Error('The API did not return the import preview.');
-  }
-  return {
-    player1: value.player1, player2: value.player2,
-    score1: value.score1, score2: value.score2, date: value.date,
-  };
-}
-
-function parsePreview(value: unknown, kind: ImportKind): PreviewPayload {
-  if (!record(value) || typeof value.filename !== 'string' || !Array.isArray(value.rows)) {
-    throw new Error('The API did not return an import preview.');
-  }
-  return {
-    filename: value.filename,
-    rows: value.rows.map(kind === 'players' ? parsePlayerRow : parseMatchRow),
-    skipped: parseSkipped(value.skipped),
-  };
-}
-
-// Previewed players have no id yet, so the card colors a name the same way
-// the officer avatar hashes a username; the id-based color applies on import.
-function nameColorIndex(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % AVATAR_COLORS.length;
-}
-
 export default function ImportPage({ kind }: ImportPageProps) {
   const { username } = useAuth();
   const config = KIND_CONFIG[kind];
@@ -120,11 +53,7 @@ export default function ImportPage({ kind }: ImportPageProps) {
     <PageLayout title={config.title} activePage={kind === 'matches' ? 'matches' : 'leaderboard'}
       backLabel={config.backLabel} backHash={config.backHash} showNavigation={false}>
       {!username ? (
-        <section className={styles.messagePanel}>
-          <h2>Officer login required</h2>
-          <p>Log in with an officer account before importing records.</p>
-          <a href="#login" className={styles.secondaryLink}>Open officer login</a>
-        </section>
+        <OfficerRequired message="Log in with an officer account before importing records." />
       ) : (
         <ImportEditor kind={kind} />
       )}
@@ -254,7 +183,7 @@ function ImportEditor({ kind }: ImportPageProps) {
           onClick={() => fileInputRef.current?.click()} aria-invalid={Boolean(fieldError)}>
           <Icon name="upload" size={file ? 20 : 30} />
           <span className={styles.fileName}>{file ? 'Import a different file' : 'Choose a CSV file'}</span>
-          <span className={styles.fileHint}>{file ? file.name : `Columns: ${config.columns.join(', ')}`}</span>
+          <span className={styles.fileHint} title={file ? file.name : undefined}>{file ? file.name : `Columns: ${config.columns.join(', ')}`}</span>
         </button>
         {fieldError && <p className={styles.fieldError} role="alert">{fieldError}</p>}
       </section>

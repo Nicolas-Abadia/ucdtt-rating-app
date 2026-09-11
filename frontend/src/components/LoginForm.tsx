@@ -10,9 +10,6 @@ interface LoginFormProps {
   // Fired after logging out (close the dropdown).
   onLogout?: () => void;
   autoFocus?: boolean;
-  // Rendered inside the header's dark pill: lifts the label color for the
-  // tone-black surface. The standalone account page uses the default.
-  dark?: boolean;
   // Form id so an external control (the navigation dock) can submit it.
   formId?: string;
   // Hide the built-in submit button when the navigation dock owns the action.
@@ -21,9 +18,8 @@ interface LoginFormProps {
 }
 
 // The shared officer sign-in surface: the login fields when logged out, and
-// the session summary plus logout when logged in. Rendered inside the header
-// account panel on desktop and inside the standalone login page on mobile.
-export default function LoginForm({ onSuccess, onLogout, autoFocus, dark, formId, externalSubmit, onStateChange }: LoginFormProps) {
+// the session summary plus logout when logged in.
+export default function LoginForm({ onSuccess, onLogout, autoFocus, formId, externalSubmit, onStateChange }: LoginFormProps) {
   const { username, login, logout } = useAuth();
   const [form, setForm] = useState({ username: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -62,7 +58,7 @@ export default function LoginForm({ onSuccess, onLogout, autoFocus, dark, formId
   }
 
   return (
-    <form id={formId} className={`${styles.loginForm} ${dark ? styles.dark : ''}`} onSubmit={submit}>
+    <form id={formId} className={styles.loginForm} onSubmit={submit}>
       <label>
         Username
         <input type="text" autoComplete="username" required autoFocus={autoFocus}

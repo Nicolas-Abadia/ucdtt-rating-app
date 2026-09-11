@@ -49,7 +49,7 @@
   text-transform: uppercase;
 }
 .previewAvatarSkeleton { background: var(--bg-primary); }
-.previewName { max-width: 100%; font-size: var(--scale-4); font-weight: var(--weight-black); overflow-wrap: anywhere; }
+.previewName { max-width: 100%; font-size: var(--scale-4); font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .previewNameSkeleton { width: min(60%, 180px); height: 26px; border-radius: 8px; background: var(--bg-primary); }
 .previewId { color: var(--text-muted); font-size: var(--scale-2); font-variant-numeric: tabular-nums; text-transform: uppercase; }
 .previewUcdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
@@ -111,38 +111,11 @@
 .note { color: var(--text-muted); font-size: var(--scale-1); line-height: 1.45; }
 .fieldError { color: var(--rating-loss); font-size: var(--scale-2); line-height: 1.4; }
 .formError { padding: 14px 16px; border-left: 4px solid var(--blood-red); border-radius: 8px; background: var(--bg-surface); color: var(--rating-loss); line-height: 1.5; }
-.messagePanel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: clamp(22px, 6vw, 36px);
-  border-radius: var(--radius-card);
-  background: var(--bg-surface);
-  line-height: 1.55;
-}
-.messagePanel h2 { font-size: var(--scale-3); }
-.secondaryLink {
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  padding: 12px 20px;
-  border: 2px solid var(--night-sky-blue);
-  border-radius: var(--radius-card);
-  background: var(--night-sky-blue);
-  color: var(--white);
-  font: inherit;
-  font-size: var(--scale-2);
-  font-weight: var(--weight-black);
-  text-decoration: none;
-  text-align: center;
-}
-.form :focus-visible, .messagePanel :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+.form :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
 @media (prefers-reduced-motion: no-preference) {
-  .segment, .ratingStep, .secondaryLink { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+  .segment, .ratingStep { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
   @media (hover: hover) and (pointer: fine) {
-    .segment:hover, .secondaryLink:hover { transform: translateY(-1px); }
+    .segment:hover { transform: translateY(-1px); }
   }
-  .segment:active, .ratingStep:not(:disabled):active, .secondaryLink:active { transform: translateY(2px) scale(0.99); }
+  .segment:active, .ratingStep:not(:disabled):active { transform: translateY(2px) scale(0.99); }
 }

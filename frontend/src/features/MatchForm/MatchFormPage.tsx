@@ -1,15 +1,17 @@
 import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import Icon from '../../components/Icon';
+import OfficerRequired from '../../components/OfficerRequired';
 import PageLayout from '../../components/PageLayout';
 import RequestState from '../../components/RequestState';
 import SearchField from '../../components/SearchField';
-import { ApiError } from '../../services/api';
+import { ApiError, messageFrom, record } from '../../services/api';
 import { authFetch, useAuth } from '../../services/auth';
 import useApiResource from '../../services/useApiResource';
 import useMagneticDock from '../../services/useMagneticDock';
 import { AVATAR_COLORS } from '../../styles/tokens';
 import type { MatchSummary } from '../../types/match';
 import type { PlayerData } from '../Leaderboard/types';
+import { parsePlayers } from '../Leaderboard/api';
 import { matchDetailPath, parseMatchDetail } from '../MatchDetail/api';
 import styles from './MatchFormPage.module.css';
 import dock from '../../components/FormDock.module.css';
@@ -25,33 +27,10 @@ interface Draft {
 type FieldName = 'player1' | 'player2' | 'score1' | 'score2' | 'date';
 type FieldErrors = Partial<Record<FieldName, string>>;
 
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function parsePlayers(value: unknown): PlayerData[] {
-  if (!Array.isArray(value) || !value.every((player) => record(player)
-    && Number.isInteger(player.id) && typeof player.name === 'string'
-    && typeof player.display_rating === 'number' && Number.isFinite(player.display_rating)
-    && Number.isInteger(player.rank) && Number.isInteger(player.wins) && Number.isInteger(player.losses))) {
-    throw new Error('The API did not return the player roster.');
-  }
-  return value as PlayerData[];
-}
-
 function localDateTimeValue(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
-}
-
-function messageFrom(value: unknown): string | null {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) {
-    const messages = value.map(messageFrom).filter((item): item is string => item !== null);
-    return messages.length ? messages.join(' ') : null;
-  }
-  return null;
 }
 
 function apiErrors(value: unknown): { fields: FieldErrors; general: string | null } {
@@ -78,23 +57,13 @@ export default function MatchFormPage({ matchId }: MatchFormPageProps) {
       backLabel={editing ? 'Back to match detail' : 'Back to match history'}
       backHash={editing ? `#matches/${matchId}` : '#matches'} showNavigation={false}>
       {!username ? (
-        <OfficerRequired />
+        <OfficerRequired message="Log in with an officer account before changing match records." />
       ) : editing ? (
         <EditMatchEditor matchId={matchId} />
       ) : (
         <NewMatchEditor />
       )}
     </PageLayout>
-  );
-}
-
-function OfficerRequired() {
-  return (
-    <section className={styles.messagePanel}>
-      <h2>Officer login required</h2>
-      <p>Log in with an officer account before changing match records.</p>
-      <a href="#login" className={styles.secondaryLink}>Open officer login</a>
-    </section>
   );
 }
 
@@ -322,7 +291,7 @@ function PlayerIdentity({ player }: { player: PlayerData }) {
   return (
     <>
       <span className={styles.avatar} style={avatarStyle} aria-hidden="true">{player.name.trim().charAt(0).toUpperCase()}</span>
-      <span className={styles.playerName}>{player.name}</span>
+      <span className={styles.playerName} title={player.name}>{player.name}</span>
       <span className={styles.playerMeta}>ID: <strong>{player.id}</strong> · Rating {player.display_rating}</span>
     </>
   );

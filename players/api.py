@@ -1,5 +1,6 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from django.db import transaction
 from django.db.models import ProtectedError, Q
 from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
@@ -10,6 +11,8 @@ from rest_framework.routers import DefaultRouter
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from ratings.services import recompute_all_ratings
 
 from . import imports
 from .models import Match, Player
@@ -58,6 +61,16 @@ def import_csv_response(request, columns, build, save):
     if to_create:
         save(to_create)
     return Response({"filename": upload.name, "created": labels, "skipped": skipped_rows})
+
+
+def _batch_ids(request):
+    """Validates the shared {ids: [...]} payload of the batch-delete actions."""
+    ids = request.data.get("ids")
+    if (not isinstance(ids, list) or not ids
+            or not all(isinstance(raw_id, int) and not isinstance(raw_id, bool) and raw_id > 0
+                       for raw_id in ids)):
+        raise ValidationError({"ids": "Send a non-empty list of positive integer ids."})
+    return ids
 
 
 class PlayerViewSet(viewsets.ModelViewSet):
@@ -125,6 +138,28 @@ class PlayerViewSet(viewsets.ModelViewSet):
         return import_csv_response(
             request, imports.PLAYER_COLUMNS, imports.build_players, imports.save_players
         )
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="batch-delete")
+    def batch_delete(self, request):
+        # Officers delete several players at once. Players with recorded
+        # matches are skipped, never force-deleted: their results are what
+        # everyone else's ratings were computed from (same rule as destroy).
+        ids = _batch_ids(request)
+        players = {player.pk: player for player in Player.objects.filter(pk__in=ids)}
+        deleted, skipped = [], []
+        # dict.fromkeys preserves the request order and drops duplicate ids.
+        for raw_id in dict.fromkeys(ids):
+            player = players.get(raw_id)
+            if player is None:
+                skipped.append({"id": raw_id, "reason": "This player no longer exists."})
+                continue
+            try:
+                player.delete()
+                deleted.append({"id": raw_id, "name": player.name})
+            except ProtectedError:
+                skipped.append({"id": raw_id, "name": player.name,
+                                "reason": "Has recorded matches and cannot be deleted."})
+        return Response({"deleted": deleted, "skipped": skipped})
 
 
 class MatchViewSet(viewsets.ModelViewSet):
@@ -232,6 +267,22 @@ class MatchViewSet(viewsets.ModelViewSet):
         return import_csv_response(
             request, imports.MATCH_COLUMNS, imports.build_matches, imports.save_matches
         )
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="batch-delete")
+    def batch_delete(self, request):
+        ids = _batch_ids(request)
+        matches = Match.objects.filter(pk__in=ids)
+        found = set(matches.values_list("pk", flat=True))
+        skipped = [{"id": raw_id, "reason": "This match no longer exists."}
+                   for raw_id in dict.fromkeys(ids) if raw_id not in found]
+        # Bulk delete bypasses Match.delete()'s per-match replay on purpose:
+        # one recompute after all the deletions, like imports.save_matches.
+        with transaction.atomic():
+            matches.delete()
+            if found:
+                recompute_all_ratings()
+        return Response({"deleted": [{"id": raw_id} for raw_id in dict.fromkeys(ids) if raw_id in found],
+                          "skipped": skipped})
 
 
 class LeaderboardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

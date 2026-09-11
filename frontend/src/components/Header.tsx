@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import Icon from './Icon';
 import { useAuth } from '../services/auth';
-import { AVATAR_COLORS } from '../styles/tokens';
+import { AVATAR_COLORS, nameColorIndex } from '../styles/tokens';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -10,21 +10,13 @@ interface HeaderProps {
   backHash?: string;
 }
 
-function officerColorIndex(username: string): number {
-  let hash = 0;
-  for (let i = 0; i < username.length; i++) {
-    hash = (hash * 31 + username.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % AVATAR_COLORS.length;
-}
-
 // The account control is navigation only. The logged-out hamburger remains
 // viewport-fixed; the logged-in officer avatar sits in the header and scrolls
 // away with it. Both states link to the account page, the single home for
 // login, session status and logout.
 export default function Header({ title, backLabel, backHash }: HeaderProps) {
   const { username } = useAuth();
-  const colorIndex = username ? officerColorIndex(username) : 0;
+  const colorIndex = username ? nameColorIndex(username) : 0;
   const avatarStyle = {
     '--avatar-bg': AVATAR_COLORS[colorIndex],
     '--avatar-ink': colorIndex >= 3 ? 'var(--tone-black)' : 'var(--white)',

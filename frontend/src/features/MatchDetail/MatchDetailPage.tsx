@@ -88,7 +88,7 @@ function ParticipantCard({ slot, name, playerId, score, winner, rating }: Partic
         <div className={styles.avatar} style={avatarStyle} aria-hidden="true">
           {name.trim().charAt(0).toUpperCase()}
         </div>
-        <span className={styles.participantName}>{name}</span>
+        <span className={styles.participantName} title={name}>{name}</span>
         <span className={styles.playerId}>ID: <span className={styles.ucdttId}>{playerId}</span></span>
         <RatingChange rating={rating} />
       </a>

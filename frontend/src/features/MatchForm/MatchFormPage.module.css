@@ -48,7 +48,7 @@
   font-weight: var(--weight-black);
 }
 .emptyAvatar { background: var(--bg-primary); color: transparent; }
-.playerName { max-width: 100%; font-size: var(--scale-3); font-weight: var(--weight-black); overflow-wrap: anywhere; }
+.playerName { max-width: 100%; font-size: var(--scale-3); font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .playerMeta { color: var(--text-muted); font-size: var(--scale-1); text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .playerMeta strong { color: var(--daylight-sky-blue); }
 .scoreField { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px; }
@@ -102,42 +102,8 @@
   color: var(--white);
   cursor: pointer;
 }
-.formActions { display: flex; flex-direction: column-reverse; gap: 12px; }
-.cancel, .submit, .deleteButton, .secondaryLink {
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 20px;
-  border-radius: var(--radius-card);
-  font: inherit;
-  font-size: var(--scale-2);
-  font-weight: var(--weight-black);
-  text-decoration: none;
-  text-align: center;
-}
-.cancel { border: var(--control-border); background: var(--bg-surface); color: var(--text-main); }
-.submit { border: 2px solid var(--aggie-yellow); background: var(--aggie-yellow); color: var(--tone-black); cursor: pointer; }
-.deleteButton { border: 2px solid var(--blood-red); background: var(--blood-red); color: var(--white); cursor: pointer; }
-.submit:disabled, .deleteButton:disabled { opacity: 0.55; cursor: wait; }
 .fieldError { color: var(--rating-loss); font-size: var(--scale-2); line-height: 1.4; }
 .formError { padding: 14px 16px; border-left: 4px solid var(--blood-red); border-radius: 8px; background: var(--bg-surface); color: var(--rating-loss); line-height: 1.5; }
-.messagePanel, .deletePanel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: clamp(22px, 6vw, 36px);
-  border-radius: var(--radius-card);
-  background: var(--bg-surface);
-  line-height: 1.55;
-}
-.messagePanel h2, .deletePanel h2 { font-size: var(--scale-3); }
-.secondaryLink { align-self: flex-start; border: 2px solid var(--night-sky-blue); background: var(--night-sky-blue); color: var(--white); }
-.dangerLabel { align-self: flex-start; padding: 6px 10px; border-radius: 999px; background: var(--blood-red); color: var(--white); font-size: var(--scale-1); font-weight: var(--weight-black); text-transform: uppercase; }
-.deleteSummary { display: grid; gap: 10px; padding: 16px; border: var(--control-border); border-radius: var(--radius-card); }
-.deleteSummary > div { display: flex; justify-content: space-between; gap: 16px; }
-.deleteSummary dt { color: var(--text-muted); font-weight: var(--weight-extra-bold); }
-.deleteSummary dd { text-align: right; font-weight: var(--weight-extra-bold); }
 .pickerBackdrop {
   position: fixed;
   inset: 0;
@@ -179,21 +145,19 @@
 .playerOption .playerMeta { flex: 0 0 auto; }
 .selectedOption { outline: 3px solid var(--daylight-sky-blue); outline-offset: 2px; }
 .noPlayers { padding: 32px 12px; color: var(--text-muted); text-align: center; }
-.form :focus-visible, .picker :focus-visible, .messagePanel :focus-visible, .deletePanel :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+.form :focus-visible, .picker :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
 @media (prefers-color-scheme: dark) { .dateRow input { color-scheme: dark; } }
 @media (min-width: 700px) {
   .playerGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .formActions { flex-direction: row; justify-content: flex-end; }
-  .cancel, .submit, .deleteButton { min-width: 180px; }
   .pickerBackdrop { place-items: center; padding: 28px; }
   .picker { width: min(650px, 100%); max-height: min(760px, calc(100dvh - 56px)); border-radius: var(--radius-card); box-shadow: 0 18px 60px rgb(0 0 0 / 0.34); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .playerCard, .playerOption, .currentTime, .cancel, .submit, .deleteButton, .secondaryLink {
+  .playerCard, .playerOption, .currentTime {
     transition: transform 150ms ease, background-color 150ms ease;
   }
   @media (hover: hover) and (pointer: fine) {
-    .playerCard:hover, .playerOption:hover, .currentTime:hover, .cancel:hover, .secondaryLink:hover { transform: translateY(-1px); }
+    .playerCard:hover, .playerOption:hover, .currentTime:hover { transform: translateY(-1px); }
   }
-  .playerCard:active, .playerOption:active, .currentTime:active, .cancel:active, .submit:active, .deleteButton:active { transform: translateY(2px) scale(0.99); }
+  .playerCard:active, .playerOption:active, .currentTime:active { transform: translateY(2px) scale(0.99); }
 }

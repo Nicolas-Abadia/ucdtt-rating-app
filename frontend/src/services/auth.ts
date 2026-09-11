@@ -143,7 +143,9 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
     ...init,
     headers: {
       Accept: 'application/json',
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      // FormData uploads (CSV import) must keep the browser-set multipart
+      // boundary; only JSON bodies get an explicit Content-Type.
+      ...(init.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
       ...init.headers,
       Authorization: `Bearer ${bearer}`,
     },

@@ -7,6 +7,7 @@ import MatchDetailPage from './features/MatchDetail/MatchDetailPage';
 import NotFoundPage from './components/NotFoundPage';
 import LoginPage from './features/Login/LoginPage';
 import MatchFormPage from './features/MatchForm/MatchFormPage';
+import ImportPage from './features/Import/ImportPage';
 
 // Hash routes support refresh and Back/Forward on the static host without
 // adding a routing dependency or a deployment rewrite.
@@ -30,6 +31,7 @@ type Route =
   | { name: 'match'; id: number }
   | { name: 'match-new' }
   | { name: 'match-edit'; id: number }
+  | { name: 'import'; kind: 'players' | 'matches' }
   | { name: 'login' }
   | { name: 'not-found' };
 
@@ -51,6 +53,11 @@ function parseRoute(hash: string): Route {
     return { name: 'not-found' };
   }
   if (head === 'login' && segments.length === 1) return { name: 'login' };
+  if (head === 'import') {
+    if (segments.length === 1) return { name: 'import', kind: 'players' };
+    if (segments.length === 2 && sub === 'matches') return { name: 'import', kind: 'matches' };
+    return { name: 'not-found' };
+  }
   if (head === 'players') {
     if (sub === 'new' && segments.length === 2) return { name: 'player-new' };
     const id = parseId(sub);
@@ -71,6 +78,7 @@ const titles: Record<Route['name'], string> = {
   match: 'Match Detail',
   'match-new': 'Log Match',
   'match-edit': 'Edit Match',
+  import: 'Import CSV',
   login: 'Officer Login',
   'not-found': 'Not Found',
 };
@@ -96,6 +104,7 @@ export default function App() {
     case 'match': return <MatchDetailPage matchId={route.id} />;
     case 'match-new': return <MatchFormPage />;
     case 'match-edit': return <MatchFormPage matchId={route.id} />;
+    case 'import': return <ImportPage key={route.kind} kind={route.kind} />;
     case 'login': return <LoginPage />;
     case 'not-found': return <NotFoundPage />;
     default: return <LeaderboardPage />;

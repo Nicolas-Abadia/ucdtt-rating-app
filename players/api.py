@@ -5,12 +5,13 @@ from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
 from rest_framework import mixins, status, viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.routers import DefaultRouter
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from . import imports
 from .models import Match, Player
 from .detail_data import pair_meetings, player_matches, profile_payload
 from .leaderboard import leaderboard_queryset
@@ -26,6 +27,37 @@ from .serializers import (
     PlayerWriteSerializer,
     MatchWriteSerializer,
 )
+
+
+def import_csv_response(request, columns, build, save):
+    """Shared two-step CSV import: preview first, write only on confirm.
+
+    Same parsing and validation as the HTML upload views and the management
+    commands. The client holds the file and sends it twice — once to preview,
+    once with ?confirm=1 — so no file text is stashed server-side, and a
+    roster change between the two requests is reflected in what is written.
+    """
+    upload = request.FILES.get("csv_file")
+    if upload is None:
+        raise ValidationError({"csv_file": "Choose a CSV file."})
+    if upload.size > imports.MAX_UPLOAD_BYTES:
+        raise ValidationError({"csv_file": "The file is too large (2 MB max)."})
+    try:
+        text = imports.read_upload_text(upload, upload.name)
+        rows = imports.rows_from_text(text, columns, upload.name)
+        to_create, skipped = build(rows)
+    except imports.CsvImportError as error:
+        raise ValidationError({"csv_file": str(error)})
+    labels = [getattr(obj, "_label", None) or str(obj) for obj in to_create]
+    skipped_rows = [{"line": line, "reason": reason} for line, reason in skipped]
+    if request.query_params.get("confirm") != "1":
+        # rows carry the structured card data the React preview renders.
+        cards = [getattr(obj, "_card", None) for obj in to_create]
+        return Response({"filename": upload.name, "pending": labels,
+                          "rows": cards, "skipped": skipped_rows})
+    if to_create:
+        save(to_create)
+    return Response({"filename": upload.name, "created": labels, "skipped": skipped_rows})
 
 
 class PlayerViewSet(viewsets.ModelViewSet):
@@ -86,6 +118,13 @@ class PlayerViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(queryset)
         serializer = MatchCardSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="import")
+    def import_csv(self, request):
+        # Officer-only bulk roster upload: preview first, write on confirm.
+        return import_csv_response(
+            request, imports.PLAYER_COLUMNS, imports.build_players, imports.save_players
+        )
 
 
 class MatchViewSet(viewsets.ModelViewSet):
@@ -185,6 +224,14 @@ class MatchViewSet(viewsets.ModelViewSet):
         serializer = MatchCardSerializer(queryset, many=True, context={"request": request})
         return Response({"count": queryset.count(), "next": None, "previous": None,
                           "results": serializer.data, "record": record})
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="import")
+    def import_csv(self, request):
+        # Officer-only bulk match upload. save_matches rebuilds every rating
+        # once after the insert, so the file does not need to be chronological.
+        return import_csv_response(
+            request, imports.MATCH_COLUMNS, imports.build_matches, imports.save_matches
+        )
 
 
 class LeaderboardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

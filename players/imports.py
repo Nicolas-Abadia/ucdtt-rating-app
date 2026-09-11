@@ -187,6 +187,8 @@ def build_players(rows):
         # Read by the upload view to report the row without touching the
         # database. Ignored by bulk_create.
         player._label = f"{name} ({rating})"
+        # Structured card for the React import preview.
+        player._card = {"name": name, "rating": rating}
         to_create.append(player)
 
     return to_create, skipped
@@ -334,6 +336,8 @@ def build_matches(rows):
         # already in hand, so reporting an import does not issue a query per
         # row the way str(match) would.
         match._label = f"{name1} vs {name2} {score1}-{score2} on {raw_date}"
+        match._card = {"player1": name1, "player2": name2,
+                       "score1": score1, "score2": score2, "date": date.isoformat()}
         to_create.append(match)
 
     return to_create, skipped

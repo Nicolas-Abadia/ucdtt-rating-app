@@ -61,7 +61,7 @@ function OfficerActions({ activePage, context, resourceId, onRequestDelete }: {
     ) : (
       <a href="#players/new" className={styles.action}><Icon name="plus" />Add new player</a>
     )}
-    <button type="button" disabled className={styles.action}><Icon name="upload" />Import CSV <small>Coming soon</small></button>
+    <a href={activePage === 'matches' ? '#import/matches' : '#import'} className={styles.action}><Icon name="upload" />Import CSV</a>
   </>;
 }
 

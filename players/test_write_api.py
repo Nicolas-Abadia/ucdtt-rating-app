@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -207,3 +208,59 @@ class MatchWriteTests(TestCase):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(Player.objects.get(pk=self.a.pk).display_rating, 1200)
         self.assertEqual(Player.objects.get(pk=self.b.pk).display_rating, 1200)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class CsvImportTests(TestCase):
+    """The API import shares the HTML views' two-step preview-then-write."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.officer = User.objects.create_user("officer")
+        Player.objects.create(name="Alice")
+        Player.objects.create(name="Ben")
+
+    def upload(self, url, text, confirm=False):
+        file = SimpleUploadedFile("roster.csv", text.encode("utf-8"),
+                                  content_type="text/csv")
+        suffix = "?confirm=1" if confirm else ""
+        return self.client.post(f"{url}{suffix}", {"csv_file": file})
+
+    def test_anonymous_import_is_rejected(self):
+        response = self.upload("/api/players/import/", "name\nMallory\n")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Player.objects.count(), 2)
+
+    def test_player_preview_writes_nothing(self):
+        self.client.force_authenticate(self.officer)
+        response = self.upload("/api/players/import/",
+            "name,rating\nCarla,1350\nAlice,1400\n,1500\n")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["pending"], ["Carla (1350)"])
+        self.assertEqual(len(payload["skipped"]), 2)
+        self.assertEqual(Player.objects.count(), 2)
+
+    def test_player_confirm_writes(self):
+        self.client.force_authenticate(self.officer)
+        response = self.upload("/api/players/import/", "name,rating\nCarla,1350\n", confirm=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["created"], ["Carla (1350)"])
+        carla = Player.objects.get(name="Carla")
+        self.assertEqual(carla.rating, 1350)
+        self.assertEqual(carla.initial_rating, 1350)
+
+    def test_unusable_file_is_a_400_field_error(self):
+        self.client.force_authenticate(self.officer)
+        response = self.upload("/api/players/import/", "rating\n1350\n")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("csv_file", response.json())
+
+    def test_match_confirm_inserts_and_recomputes_once(self):
+        self.client.force_authenticate(self.officer)
+        yesterday = (timezone.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+        response = self.upload("/api/matches/import/",
+            f"player1,player2,score1,score2,date\nAlice,Ben,11,7,{yesterday}\n", confirm=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 1)
+        self.assertEqual(Player.objects.get(name="Alice").display_rating, 1216)

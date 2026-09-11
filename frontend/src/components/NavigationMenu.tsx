@@ -8,6 +8,10 @@ import styles from './NavigationMenu.module.css';
 const COLLAPSE_DELAY_MS = 500;
 const DOCK_HOVERED_CLASS = 'is-dock-hovered';
 
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 interface NavigationMenuProps {
   activePage?: 'leaderboard' | 'matches';
   isOfficer?: boolean;
@@ -35,10 +39,12 @@ function OfficerActions({ activePage, context, resourceId, onRequestDelete }: {
   resourceId?: number;
   onRequestDelete: () => void;
 }) {
-  if (context === 'player') {
+  if (context === 'player' && resourceId !== undefined) {
     return <>
-      <button type="button" disabled className={styles.action}><Icon name="edit" />Edit player <small>Coming soon</small></button>
-      <button type="button" disabled className={`${styles.action} ${styles.dangerAction}`}><Icon name="trash" />Delete player <small>Coming soon</small></button>
+      <a href={`#players/${resourceId}/edit`} className={styles.action}><Icon name="edit" />Edit player</a>
+      <button type="button" className={`${styles.action} ${styles.dangerAction}`} onClick={onRequestDelete}>
+        <Icon name="trash" />Delete player
+      </button>
     </>;
   }
   if (context === 'match' && resourceId !== undefined) {
@@ -53,7 +59,7 @@ function OfficerActions({ activePage, context, resourceId, onRequestDelete }: {
     {activePage === 'matches' ? (
       <a href="#matches/new" className={styles.action}><Icon name="plus" />Log new match</a>
     ) : (
-      <button type="button" disabled className={styles.action}><Icon name="plus" />Add new player <small>Coming soon</small></button>
+      <a href="#players/new" className={styles.action}><Icon name="plus" />Add new player</a>
     )}
     <button type="button" disabled className={styles.action}><Icon name="upload" />Import CSV <small>Coming soon</small></button>
   </>;
@@ -99,23 +105,46 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
     setConfirmingDelete(true);
   }
 
-  async function deleteMatch() {
-    if (officerResourceId === undefined) return;
+  const deleteConfig = officerResourceId === undefined ? null
+    : officerContext === 'match'
+      ? {
+        endpoint: `/api/matches/${officerResourceId}/`,
+        label: 'Confirm delete match',
+        successHash: '#matches',
+        gone: 'This match no longer exists.',
+      }
+      : officerContext === 'player'
+        ? {
+          endpoint: `/api/players/${officerResourceId}/`,
+          label: 'Confirm delete player',
+          successHash: '#leaderboard',
+          gone: 'This player no longer exists.',
+        }
+        : null;
+
+  async function deleteResource() {
+    if (!deleteConfig) return;
     clearCollapseTimer();
     setDeleting(true);
     setDeleteError(null);
     try {
-      const response = await authFetch(`/api/matches/${officerResourceId}/`, { method: 'DELETE' });
+      const response = await authFetch(deleteConfig.endpoint, { method: 'DELETE' });
       if (response.status === 204) {
-        window.location.hash = '#matches';
+        window.location.hash = deleteConfig.successHash;
         return;
       }
       if (response.status === 401 || response.status === 403) {
         setDeleteError('Your officer session expired. Log in again before deleting.');
       } else if (response.status === 404) {
-        setDeleteError('This match no longer exists.');
+        setDeleteError(deleteConfig.gone);
       } else {
-        setDeleteError('The server could not delete this match. Try again.');
+        // A protected player comes back as 409 with an explanatory detail.
+        let message = 'The server could not delete this record. Try again.';
+        try {
+          const body: unknown = await response.json();
+          if (record(body) && typeof body.detail === 'string') message = body.detail;
+        } catch { /* keep the generic message */ }
+        setDeleteError(message);
       }
     } catch (caught) {
       setDeleteError(caught instanceof ApiError && caught.status === 401
@@ -184,7 +213,7 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
     <nav ref={dockRef}
       className={`${styles.dock} ${isOfficer ? styles.officerDock : styles.publicDock} ${isOfficer && expanded ? styles.expanded : ''} ${attention ? styles.attention : ''}`}
       data-accent={activeAccent}
-      aria-label={confirmingDelete ? 'Delete match confirmation' : 'Main navigation'}
+      aria-label={confirmingDelete ? 'Delete confirmation' : 'Main navigation'}
       onMouseEnter={() => { document.body.classList.add(DOCK_HOVERED_CLASS); clearCollapseTimer(); }}
       onMouseLeave={() => {
         document.body.classList.remove(DOCK_HOVERED_CLASS);
@@ -194,8 +223,8 @@ export default function NavigationMenu({ activePage = 'leaderboard', isOfficer =
         <div className={styles.deleteConfirmation}>
           {deleteError && <p className={styles.confirmationError} role="alert">{deleteError}</p>}
           <button ref={confirmDeleteRef} type="button" className={styles.confirmDelete}
-            disabled={deleting} onClick={deleteMatch}>
-            <span>{deleting ? 'Deleting…' : 'Confirm delete match'}</span>
+            disabled={deleting} onClick={deleteResource}>
+            <span>{deleting ? 'Deleting…' : (deleteConfig?.label ?? 'Confirm delete')}</span>
             <Icon name="arrow" size={24} />
           </button>
         </div>

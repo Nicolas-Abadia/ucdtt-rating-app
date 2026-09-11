@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import LeaderboardPage from './features/Leaderboard/LeaderboardPage';
 import MatchHistoryPage from './features/MatchHistory/MatchHistoryPage';
 import PlayerProfilePage from './features/PlayerProfile/PlayerProfilePage';
+import PlayerFormPage from './features/PlayerForm/PlayerFormPage';
 import MatchDetailPage from './features/MatchDetail/MatchDetailPage';
 import NotFoundPage from './components/NotFoundPage';
 import LoginPage from './features/Login/LoginPage';
@@ -24,6 +25,8 @@ type Route =
   | { name: 'leaderboard' }
   | { name: 'matches' }
   | { name: 'player'; id: number }
+  | { name: 'player-new' }
+  | { name: 'player-edit'; id: number }
   | { name: 'match'; id: number }
   | { name: 'match-new' }
   | { name: 'match-edit'; id: number }
@@ -48,9 +51,13 @@ function parseRoute(hash: string): Route {
     return { name: 'not-found' };
   }
   if (head === 'login' && segments.length === 1) return { name: 'login' };
-  if (head === 'players' && segments.length === 2) {
+  if (head === 'players') {
+    if (sub === 'new' && segments.length === 2) return { name: 'player-new' };
     const id = parseId(sub);
-    return id === null ? { name: 'not-found' } : { name: 'player', id };
+    if (id === null) return { name: 'not-found' };
+    if (segments.length === 2) return { name: 'player', id };
+    if (segments.length === 3 && action === 'edit') return { name: 'player-edit', id };
+    return { name: 'not-found' };
   }
   return { name: 'not-found' };
 }
@@ -59,6 +66,8 @@ const titles: Record<Route['name'], string> = {
   leaderboard: 'Leaderboard',
   matches: 'Match History',
   player: 'Player Profile',
+  'player-new': 'Add Player',
+  'player-edit': 'Edit Player',
   match: 'Match Detail',
   'match-new': 'Log Match',
   'match-edit': 'Edit Match',
@@ -82,6 +91,8 @@ export default function App() {
   switch (route.name) {
     case 'matches': return <MatchHistoryPage />;
     case 'player': return <PlayerProfilePage playerId={route.id} />;
+    case 'player-new': return <PlayerFormPage />;
+    case 'player-edit': return <PlayerFormPage playerId={route.id} />;
     case 'match': return <MatchDetailPage matchId={route.id} />;
     case 'match-new': return <MatchFormPage />;
     case 'match-edit': return <MatchFormPage matchId={route.id} />;

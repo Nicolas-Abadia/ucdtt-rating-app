@@ -1,0 +1,81 @@
+/* Shared fixed confirmation dock: one primary action that breathes and glows
+   in its accent color once every required field is valid. Match forms use the
+   default gold accent; player forms add .blue for the night-sky-blue player
+   accent. A failed validation shakes the dock and flashes the action red. */
+.formActionDock {
+  --form-glow: rgb(220 180 11 / 0.35);
+  --form-glow-strong: rgb(220 180 11 / 0.45);
+  position: fixed;
+  z-index: 45;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(360px, calc(100% - 42px));
+  padding: 6px;
+  border-radius: var(--radius-dock);
+  background: var(--tone-black);
+  transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px));
+}
+.formActionDock.blue {
+  --form-glow: rgb(51 51 181 / 0.45);
+  --form-glow-strong: rgb(51 51 181 / 0.6);
+}
+.attention { box-shadow: 0 0 18px 2px var(--form-glow); }
+.shake { box-shadow: 0 0 18px 2px rgb(250 46 46 / 0.45); }
+.submit {
+  width: 100%;
+  min-width: 0;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: calc(var(--radius-dock) - 6px);
+  background: var(--aggie-yellow);
+  color: var(--tone-black);
+  font: inherit;
+  font-size: var(--scale-3);
+  font-weight: var(--weight-black);
+  cursor: pointer;
+}
+.blue .submit { background: var(--night-sky-blue); color: var(--white); }
+.shake .submit { background: var(--blood-red); color: var(--white); }
+.submit:disabled {
+  background: var(--silent-black);
+  color: var(--pigeon-gray);
+  cursor: not-allowed;
+}
+.submitArrow { flex: 0 0 auto; display: grid; place-items: center; }
+@keyframes formBreath {
+  0%, 100% {
+    transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px)) scale(1);
+    box-shadow: 0 0 14px 1px var(--form-glow);
+  }
+  50% {
+    transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px)) scale(1.025);
+    box-shadow: 0 0 32px 6px var(--form-glow-strong);
+  }
+}
+@keyframes formShake {
+  0%, 100% { transform: translateX(calc(-50% + var(--magnet-x, 0px))) translateY(var(--magnet-y, 0px)); }
+  20% { transform: translateX(calc(-50% + var(--magnet-x, 0px) - 9px)) translateY(var(--magnet-y, 0px)); }
+  40% { transform: translateX(calc(-50% + var(--magnet-x, 0px) + 8px)) translateY(var(--magnet-y, 0px)); }
+  60% { transform: translateX(calc(-50% + var(--magnet-x, 0px) - 6px)) translateY(var(--magnet-y, 0px)); }
+  80% { transform: translateX(calc(-50% + var(--magnet-x, 0px) + 4px)) translateY(var(--magnet-y, 0px)); }
+}
+/* Reduced motion keeps the error signal as a red glow pulse instead of motion. */
+@keyframes formFlash {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(250 46 46 / 0); }
+  50% { box-shadow: 0 0 26px 6px rgb(250 46 46 / 0.55); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .formActionDock { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1.1); }
+  .formActionDock.attention { animation: formBreath 2.8s ease-in-out infinite; }
+  .formActionDock.shake { animation: formShake 480ms ease; }
+  .submit { transition: transform 150ms ease, background-color 200ms ease, color 200ms ease; }
+  .submit:not(:disabled):active { transform: translateY(2px) scale(0.99); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .formActionDock.shake { animation: formFlash 480ms ease; }
+}

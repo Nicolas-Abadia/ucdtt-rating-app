@@ -12,6 +12,7 @@ import type { MatchSummary } from '../../types/match';
 import type { PlayerData } from '../Leaderboard/types';
 import { matchDetailPath, parseMatchDetail } from '../MatchDetail/api';
 import styles from './MatchFormPage.module.css';
+import dock from '../../components/FormDock.module.css';
 
 interface MatchFormPageProps { matchId?: number }
 interface Draft {
@@ -130,6 +131,7 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [shaking, setShaking] = useState(false);
   const dockRef = useRef<HTMLDivElement>(null);
   useMagneticDock(dockRef);
 
@@ -169,7 +171,10 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
     const clientErrors = validate();
     setFieldErrors(clientErrors);
     setError(null);
-    if (Object.keys(clientErrors).length) return;
+    if (Object.keys(clientErrors).length) {
+      setShaking(true);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -195,9 +200,12 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
       try { body = await response.json(); } catch { /* non-JSON server error */ }
       const parsed = apiErrors(body);
       setFieldErrors(parsed.fields);
+      // Field-level validation errors are marked on the fields themselves;
+      // the dock shakes red instead of showing a generic "check fields" card.
+      if (response.status === 400) setShaking(true);
       setError(parsed.general ?? (response.status >= 500
         ? 'The server could not save the match. Try again.'
-        : 'Check the highlighted fields and try again.'));
+        : null));
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 401
         ? 'Your officer session expired. Log in again before saving.'
@@ -236,10 +244,11 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
         </section>
 
         {error && <p className={styles.formError} role="alert">{error}</p>}
-        <div ref={dockRef} className={`${styles.formActionDock} ${canSubmit && !submitting ? styles.attention : ''}`}>
-          <button type="submit" className={styles.submit} disabled={!canSubmit || submitting}>
+        <div ref={dockRef} onAnimationEnd={() => setShaking(false)}
+          className={`${dock.formActionDock} ${canSubmit && !submitting ? dock.attention : ''} ${shaking ? dock.shake : ''}`}>
+          <button type="submit" className={dock.submit} disabled={!canSubmit || submitting}>
             <span>{submitting ? 'Saving…' : match ? 'Save match' : 'Log this match'}</span>
-            <span className={styles.submitArrow} aria-hidden="true"><Icon name="arrow" size={24} /></span>
+            <span className={dock.submitArrow} aria-hidden="true"><Icon name="arrow" size={24} /></span>
           </button>
         </div>
       </form>

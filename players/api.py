@@ -11,10 +11,12 @@ from rest_framework.routers import DefaultRouter
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from ratings.services import recompute_all_ratings
 
 from . import imports
+from .forms import OfficerSignUpForm
 from .models import Match, Player
 from .detail_data import pair_meetings, player_matches, profile_payload
 from .leaderboard import leaderboard_queryset
@@ -283,6 +285,29 @@ class MatchViewSet(viewsets.ModelViewSet):
                 recompute_all_ratings()
         return Response({"deleted": [{"id": raw_id} for raw_id in dict.fromkeys(ids) if raw_id in found],
                           "skipped": skipped})
+
+
+class OfficerCreateView(APIView):
+    """Officers create further officer accounts; there is no public signup.
+
+    Reuses the server-rendered OfficerSignUpForm, so the API applies exactly
+    the rules of the HTML signup: Django's username checks, the two password
+    fields matching, and the configured AUTH_PASSWORD_VALIDATORS.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        form = OfficerSignUpForm(data=request.data)
+        if not form.is_valid():
+            # get_json_data entries carry the message; an ErrorDict itself
+            # would not serialize to the plain lists the client maps.
+            raise ValidationError({
+                field: [entry["message"] for entry in entries]
+                for field, entries in form.errors.get_json_data().items()
+            })
+        officer = form.save()
+        return Response({"id": officer.pk, "username": officer.username}, status=201)
 
 
 class LeaderboardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

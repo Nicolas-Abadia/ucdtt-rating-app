@@ -11,6 +11,7 @@ export type Route =
   | { name: 'match-edit'; id: number }
   | { name: 'import'; kind: 'players' | 'matches' }
   | { name: 'login' }
+  | { name: 'officer-new' }
   | { name: 'not-found' };
 
 function parseId(segment: string | undefined): number | null {
@@ -36,6 +37,7 @@ export function parseRoute(hash: string): Route {
     if (segments.length === 2 && sub === 'matches') return { name: 'import', kind: 'matches' };
     return { name: 'not-found' };
   }
+  if (head === 'officers' && sub === 'new' && segments.length === 2) return { name: 'officer-new' };
   if (head === 'players') {
     if (sub === 'new' && segments.length === 2) return { name: 'player-new' };
     const id = parseId(sub);

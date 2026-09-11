@@ -360,3 +360,65 @@ class OfficerCreateTests(TestCase):
             self.payload(password1="12345678", password2="12345678"), format="json")
         self.assertEqual(response.status_code, 400)
         self.assertFalse(User.objects.filter(username="newofficer").exists())
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class OfficerAccountTests(TestCase):
+    """The signed-in officer's own username and password changes."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.officer = User.objects.create_user("officer", password="current-pass-42")
+        User.objects.create_user("other", password="other-pass-42")
+
+    def test_anonymous_cannot_change_an_account(self):
+        response = self.client.post("/api/account/", {"username": "renamed"}, format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(User.objects.filter(username="renamed").exists())
+
+    def test_username_change(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/account/", {"username": "renamed"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["changed"], ["username"])
+        self.assertTrue(User.objects.filter(username="renamed").exists())
+
+    def test_password_change_requires_the_current_password(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/account/", {
+            "username": "officer", "old_password": "wrong",
+            "new_password1": "brand-new-42", "new_password2": "brand-new-42",
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("old_password", response.json())
+        self.officer.refresh_from_db()
+        self.assertTrue(self.officer.check_password("current-pass-42"))
+
+    def test_a_failed_half_writes_neither(self):
+        # A taken username plus a valid password change must change nothing.
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/account/", {
+            "username": "other", "old_password": "current-pass-42",
+            "new_password1": "brand-new-42", "new_password2": "brand-new-42",
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.officer.refresh_from_db()
+        self.assertEqual(self.officer.username, "officer")
+        self.assertTrue(self.officer.check_password("current-pass-42"))
+
+    def test_password_change(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/account/", {
+            "username": "officer", "old_password": "current-pass-42",
+            "new_password1": "brand-new-42", "new_password2": "brand-new-42",
+        }, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["changed"], ["password"])
+        self.officer.refresh_from_db()
+        self.assertTrue(self.officer.check_password("brand-new-42"))
+
+    def test_no_changes_reported(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/account/", {"username": "officer"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["changed"], [])

@@ -9,6 +9,7 @@ import LoginPage from './features/Login/LoginPage';
 import MatchFormPage from './features/MatchForm/MatchFormPage';
 import ImportPage from './features/Import/ImportPage';
 import OfficerFormPage from './features/OfficerForm/OfficerFormPage';
+import AccountPage from './features/Account/AccountPage';
 import { parseRoute, type Route } from './router';
 
 // Hash routes support refresh and Back/Forward on the static host without
@@ -36,6 +37,7 @@ const titles: Record<Route['name'], string> = {
   import: 'Import CSV',
   login: 'Officer Login',
   'officer-new': 'Add Officer',
+  account: 'Account',
   'not-found': 'Not Found',
 };
 
@@ -63,6 +65,7 @@ export default function App() {
     case 'import': return <ImportPage key={route.kind} kind={route.kind} />;
     case 'login': return <LoginPage />;
     case 'officer-new': return <OfficerFormPage />;
+    case 'account': return <AccountPage />;
     case 'not-found': return <NotFoundPage />;
     default: return <LeaderboardPage />;
   }

@@ -30,6 +30,7 @@ describe('parseRoute', () => {
   it('parses the officer creation route and rejects the bare section', () => {
     expect(parseRoute('#officers/new')).toEqual({ name: 'officer-new' });
     expect(parseRoute('#officers')).toEqual({ name: 'not-found' });
+    expect(parseRoute('#account')).toEqual({ name: 'account' });
   });
 
   it('rejects malformed or unknown hashes', () => {

@@ -13,10 +13,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.contrib.auth.forms import PasswordChangeForm
+
 from ratings.services import recompute_all_ratings
 
 from . import imports
-from .forms import OfficerSignUpForm
+from .forms import OfficerSignUpForm, UsernameChangeForm
 from .models import Match, Player
 from .detail_data import pair_meetings, player_matches, profile_payload
 from .leaderboard import leaderboard_queryset
@@ -308,6 +310,56 @@ class OfficerCreateView(APIView):
             })
         officer = form.save()
         return Response({"id": officer.pk, "username": officer.username}, status=201)
+
+
+class OfficerAccountView(APIView):
+    """The signed-in officer changes their own username, password, or both.
+
+    Mirrors the HTML account page: UsernameChangeForm plus Django's
+    PasswordChangeForm, both validated before either writes, always acting
+    on request.user. Nothing takes a user id, so no officer can rename or
+    reset another account through the API.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    PASSWORD_FIELDS = ("old_password", "new_password1", "new_password2")
+
+    def post(self, request):
+        user = request.user
+        changing_password = any(
+            request.data.get(field) for field in self.PASSWORD_FIELDS
+        )
+        username_form = UsernameChangeForm(data=request.data, instance=user)
+        password_form = (
+            PasswordChangeForm(user=user, data=request.data)
+            if changing_password
+            else PasswordChangeForm(user=user)
+        )
+        username_ok = username_form.is_valid()
+        password_ok = password_form.is_valid() if changing_password else True
+        if not (username_ok and password_ok):
+            # One submit, one outcome: failing either half writes neither.
+            errors = {}
+            for form in (username_form, password_form):
+                for field, entries in form.errors.get_json_data().items():
+                    errors[field] = [entry["message"] for entry in entries]
+            raise ValidationError(errors)
+
+        changed = []
+        with transaction.atomic():
+            if username_form.has_changed():
+                username_form.save()
+                changed.append("username")
+            if changing_password:
+                # Both forms hold the same in-memory user object, so this save
+                # carries the new username along rather than overwriting it.
+                password_form.save()
+                changed.append("password")
+        # JWTs are stateless: existing tokens stay valid until they expire,
+        # same as after a logout-free password change anywhere. The 30-minute
+        # access lifetime bounds it; the client keeps its session.
+        return Response({"username": user.username, "changed": changed})
 
 
 class LeaderboardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

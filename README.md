@@ -121,8 +121,9 @@ Officer writes authenticate with a bearer token: obtain with `POST /api/token/`,
 | Preview or run a CSV import | `POST /api/players/import/`, `POST /api/matches/import/` |
 | Delete many rows at once | `POST /api/players/batch-delete/`, `POST /api/matches/batch-delete/` with `{"ids": [...]}` |
 | Create an officer account | `POST /api/officers/` |
+| Change the signed-in officer's username or password | `POST /api/account/` |
 
-Writes enforce the same rules as the HTML forms: distinct players, non-negative unequal scores, no future dates, and a case-insensitively unique player name. Editing or deleting a match replays the affected ratings. Deleting a player with recorded matches is refused with `409`, because their results feed everyone else's ratings. Creating an officer reuses the HTML signup's form, so the API applies the same username rules and the configured password validators; only a signed-in officer can create another.
+Writes enforce the same rules as the HTML forms: distinct players, non-negative unequal scores, no future dates, and a case-insensitively unique player name. Editing or deleting a match replays the affected ratings. Deleting a player with recorded matches is refused with `409`, because their results feed everyone else's ratings. Creating an officer reuses the HTML signup's form, so the API applies the same username rules and the configured password validators; only a signed-in officer can create another. The account endpoint likewise reuses the HTML account page's forms: username and password changes are validated together before either writes, and a password change requires the current password.
 
 Import endpoints take a multipart `csv_file`. The default response is a preview (`{"filename", "rows", "skipped", ...}`) that writes nothing; adding `?confirm=1` performs the import. Parsing, validation, and the single rating rebuild are shared with the management commands and the HTML importer through `players/imports.py`.
 

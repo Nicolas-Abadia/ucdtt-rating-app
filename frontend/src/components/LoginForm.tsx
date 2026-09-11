@@ -35,6 +35,7 @@ export default function LoginForm({ onSuccess, onLogout, autoFocus, formId, exte
       <div className={styles.session}>
         <p className={styles.panelText}>Logged in as <strong>{username}</strong></p>
         <a href="#officers/new" className={styles.addOfficer}>Add a new officer account</a>
+        <a href="#account" className={styles.addOfficer}>Change username or password</a>
         <button type="button" className={controls.button}
           onClick={() => { logout(); onLogout?.(); }}>Log out</button>
       </div>

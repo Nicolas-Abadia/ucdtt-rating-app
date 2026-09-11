@@ -8,7 +8,7 @@ rest of django.contrib.auth.urls, then the admin.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
-from players.api import OfficerCreateView, router
+from players.api import OfficerAccountView, OfficerCreateView, router
 from rest_framework_simplejwt.views import (
     TokenBlacklistView,
     TokenObtainPairView,
@@ -36,6 +36,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Officers create further officer accounts; no public self-registration.
     path("api/officers/", OfficerCreateView.as_view(), name="officer_create"),
+    # The signed-in officer's own account: username and password changes.
+    path("api/account/", OfficerAccountView.as_view(), name="api_account"),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # Logout invalidates the refresh token server-side, not just client-side.

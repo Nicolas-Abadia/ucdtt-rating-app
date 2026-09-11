@@ -3,9 +3,8 @@ import { apiUrl, ApiError } from './api';
 
 // Officer session state. The JWT pair is stored in localStorage so a session
 // survives reloads; the access token is refreshed through
-// /api/token/refresh/ when it is within 10 seconds of expiring. There is no
-// server-side logout endpoint wired, so logging out discards the pair
-// client-side (the blacklisted refresh rotation bounds the residue).
+// /api/token/refresh/ when it is within 10 seconds of expiring. Logout
+// discards the pair client-side and blacklists the refresh token server-side.
 
 const STORAGE_KEY = 'ttapp.auth';
 const EXPIRY_BUFFER_MS = 10_000;
@@ -86,6 +85,13 @@ export async function logout() {
   } catch { /* the pair is already discarded client-side */ }
 }
 
+// After an account rename the stored session must follow, or the UI would
+// keep greeting the old username until the next login.
+export function renameUsername(next: string) {
+  const current = session;
+  if (current) save({ ...current, username: next });
+}
+
 // Single-flight: concurrent requests share one refresh round-trip instead of
 // racing to rotate the same refresh token twice (the second would be
 // blacklisted and log the officer out).
@@ -160,5 +166,5 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
 
 export function useAuth() {
   const current = useSyncExternalStore(subscribe, () => session, () => null);
-  return { username: current?.username ?? null, login, logout };
+  return { username: current?.username ?? null, login, logout, renameUsername };
 }

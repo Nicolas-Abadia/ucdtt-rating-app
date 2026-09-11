@@ -1,0 +1,30 @@
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+.loginForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: var(--scale-2);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+.loginForm input {
+  width: 100%;
+  min-height: 52px;
+  padding: 13px 16px;
+  border: var(--control-border);
+  border-radius: 17px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+}
+.loginForm input:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 2px; }
+.loginError { font-size: 12px; color: var(--rating-loss); }
+.session { display: flex; flex-direction: column; gap: 16px; }
+.panelText { font-size: var(--scale-2); color: var(--text-muted); }
+.panelText strong { color: var(--text-main); }

@@ -24,7 +24,7 @@
   width: 72px; height: 72px; border-radius: 24px; display: grid; place-items: center;
   background: var(--avatar-bg); color: var(--avatar-ink); font-weight: var(--weight-black); font-size: var(--scale-4);
 }
-.participantName { font-weight: var(--weight-black); font-size: var(--scale-3); }
+.participantName { max-width: 100%; font-weight: var(--weight-black); font-size: var(--scale-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .playerId { font-size: var(--scale-1); color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .ucdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
 .scoreBlock { display: flex; flex-direction: column; align-items: center; gap: 4px; }

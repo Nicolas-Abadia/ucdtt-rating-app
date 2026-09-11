@@ -1,0 +1,35 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(22px, 6vw, 36px);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  line-height: 1.55;
+}
+.panel h2 { font-size: var(--scale-3); }
+.link {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  padding: 12px 20px;
+  border: 2px solid var(--night-sky-blue);
+  border-radius: var(--radius-card);
+  background: var(--night-sky-blue);
+  color: var(--white);
+  font: inherit;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-black);
+  text-decoration: none;
+  text-align: center;
+}
+.panel :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .link { transition: transform 150ms ease, background-color 150ms ease; }
+  @media (hover: hover) and (pointer: fine) {
+    .link:hover { transform: translateY(-1px); }
+  }
+  .link:active { transform: translateY(2px) scale(0.99); }
+}

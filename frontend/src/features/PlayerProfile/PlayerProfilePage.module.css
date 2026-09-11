@@ -15,7 +15,7 @@
   border-radius: 16px; display: grid; place-items: center; background: var(--aggie-yellow); color: var(--tone-black);
   font-weight: var(--weight-black); font-size: var(--scale-2); border: 3px solid var(--bg-surface);
 }
-.name { font-size: var(--scale-4); font-weight: var(--weight-black); }
+.name { max-width: 100%; font-size: var(--scale-4); font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .playerId { color: var(--text-muted); font-size: var(--scale-2); font-variant-numeric: tabular-nums; }
 .ucdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
 .attributes { display: flex; gap: 24px; margin-top: 4px; }

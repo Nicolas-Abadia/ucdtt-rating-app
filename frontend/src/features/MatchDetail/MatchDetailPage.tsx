@@ -16,7 +16,8 @@ export default function MatchDetailPage({ matchId }: { matchId: number }) {
   const { data: match, loading, error, notFound, retry } = useApiResource(matchDetailPath(matchId), parseMatchDetail);
 
   return (
-    <PageLayout title="Match Detail" activePage="matches" backLabel="Back to match history" backHash="#matches">
+    <PageLayout title="Match Detail" activePage="matches" backLabel="Back to match history" backHash="#matches"
+      officerContext="match" officerResourceId={matchId}>
       {loading ? (
         <RequestState loading title="Loading match" message="The server may take a moment to respond." />
       ) : notFound ? (
@@ -87,7 +88,7 @@ function ParticipantCard({ slot, name, playerId, score, winner, rating }: Partic
         <div className={styles.avatar} style={avatarStyle} aria-hidden="true">
           {name.trim().charAt(0).toUpperCase()}
         </div>
-        <span className={styles.participantName}>{name}</span>
+        <span className={styles.participantName} title={name}>{name}</span>
         <span className={styles.playerId}>ID: <span className={styles.ucdttId}>{playerId}</span></span>
         <RatingChange rating={rating} />
       </a>

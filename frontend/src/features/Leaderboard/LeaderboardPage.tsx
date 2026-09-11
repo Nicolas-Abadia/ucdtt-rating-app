@@ -1,45 +1,23 @@
-import { useEffect, useState } from 'react';
 import PageLayout from '../../components/PageLayout';
 import RequestState from '../../components/RequestState';
-import { apiUrl } from '../../services/api';
+import useApiResource from '../../services/useApiResource';
+import { parsePlayers } from './api';
 import Leaderboard from './components/Leaderboard';
-import type { PlayerData } from './types';
 
+// The leaderboard uses the same generic fetch hook as the other pages, so a
+// dead backend offers the same Try again recovery everywhere.
 export default function LeaderboardPage() {
-  const [players, setPlayers] = useState<PlayerData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(apiUrl('/api/leaderboard/'), { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
-        return res.json();
-      })
-      .then((data: PlayerData[]) => {
-        if (controller.signal.aborted) return;
-        if (!Array.isArray(data)) throw new Error('Invalid leaderboard response');
-        setPlayers(data);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setError('Could not load the leaderboard. Please try again later.');
-        setIsLoading(false);
-      });
-    return () => controller.abort();
-  }, []);
+  const roster = useApiResource('/api/leaderboard/', parsePlayers);
 
   return (
     <PageLayout title="Leaderboard" activePage="leaderboard">
-      {isLoading ? (
+      {roster.loading ? (
         <RequestState loading title="Loading leaderboard" message="The server may take a moment to respond." />
-      ) : error ? (
-        <RequestState title="Unable to load players" message={error} />
-      ) : (
-        <Leaderboard players={players} />
-      )}
+      ) : roster.error ? (
+        <RequestState title="Unable to load players" message={roster.error} onRetry={roster.retry} />
+      ) : roster.data ? (
+        <Leaderboard players={roster.data} />
+      ) : null}
     </PageLayout>
   );
 }

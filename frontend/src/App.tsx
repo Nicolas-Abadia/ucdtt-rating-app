@@ -2,8 +2,13 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import LeaderboardPage from './features/Leaderboard/LeaderboardPage';
 import MatchHistoryPage from './features/MatchHistory/MatchHistoryPage';
 import PlayerProfilePage from './features/PlayerProfile/PlayerProfilePage';
+import PlayerFormPage from './features/PlayerForm/PlayerFormPage';
 import MatchDetailPage from './features/MatchDetail/MatchDetailPage';
 import NotFoundPage from './components/NotFoundPage';
+import LoginPage from './features/Login/LoginPage';
+import MatchFormPage from './features/MatchForm/MatchFormPage';
+import ImportPage from './features/Import/ImportPage';
+import { parseRoute, type Route } from './router';
 
 // Hash routes support refresh and Back/Forward on the static host without
 // adding a routing dependency or a deployment rewrite.
@@ -18,38 +23,17 @@ function currentHash() {
   return window.location.hash;
 }
 
-type Route =
-  | { name: 'leaderboard' }
-  | { name: 'matches' }
-  | { name: 'player'; id: number }
-  | { name: 'match'; id: number }
-  | { name: 'not-found' };
-
-function parseId(segment: string | undefined): number | null {
-  return segment !== undefined && /^[1-9][0-9]*$/.test(segment) ? Number(segment) : null;
-}
-
-function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#/, '');
-  const [head, sub] = path.split('/');
-  if (!head || head === 'leaderboard') return { name: 'leaderboard' };
-  if (head === 'matches') {
-    if (sub === undefined) return { name: 'matches' };
-    const id = parseId(sub);
-    return id === null ? { name: 'not-found' } : { name: 'match', id };
-  }
-  if (head === 'players') {
-    const id = parseId(sub);
-    return id === null ? { name: 'not-found' } : { name: 'player', id };
-  }
-  return { name: 'not-found' };
-}
-
 const titles: Record<Route['name'], string> = {
   leaderboard: 'Leaderboard',
   matches: 'Match History',
   player: 'Player Profile',
+  'player-new': 'Add Player',
+  'player-edit': 'Edit Player',
   match: 'Match Detail',
+  'match-new': 'Log Match',
+  'match-edit': 'Edit Match',
+  import: 'Import CSV',
+  login: 'Officer Login',
   'not-found': 'Not Found',
 };
 
@@ -69,7 +53,13 @@ export default function App() {
   switch (route.name) {
     case 'matches': return <MatchHistoryPage />;
     case 'player': return <PlayerProfilePage playerId={route.id} />;
+    case 'player-new': return <PlayerFormPage />;
+    case 'player-edit': return <PlayerFormPage playerId={route.id} />;
     case 'match': return <MatchDetailPage matchId={route.id} />;
+    case 'match-new': return <MatchFormPage />;
+    case 'match-edit': return <MatchFormPage matchId={route.id} />;
+    case 'import': return <ImportPage key={route.kind} kind={route.kind} />;
+    case 'login': return <LoginPage />;
     case 'not-found': return <NotFoundPage />;
     default: return <LeaderboardPage />;
   }

@@ -132,7 +132,9 @@ class HeadToHeadTests(TestCase):
         return response.json()
 
     def test_record_counts_both_orientations(self):
-        # Alice beats Ben as player1, then Ben beats Alice as player1.
+        # Alice beats Ben as player1, Ben beats Alice as player1, then Alice
+        # wins again. The record is the pair's global tally, including the
+        # selected match itself.
         Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day)
         Match.objects.create(player1=self.b, player2=self.a,
@@ -140,33 +142,30 @@ class HeadToHeadTests(TestCase):
         current = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=3, date=self.day + timedelta(minutes=2))
         payload = self.head_to_head(current)
-        self.assertEqual(payload["record"], {"player1_wins": 1, "player2_wins": 1})
-        self.assertEqual(payload["count"], 2)
+        self.assertEqual(payload["record"], {"player1_wins": 2, "player2_wins": 1})
+        self.assertEqual(payload["count"], 3)
 
-    def test_excludes_current_future_and_unrelated_matches(self):
-        # Same timestamp as the current match but created first: the primary
-        # key tiebreak counts it as a prior meeting.
+    def test_counts_current_and_future_meetings_excluding_unrelated(self):
+        # Three meetings share a timestamp and fall back to the primary-key
+        # tiebreak; only the Alice-Ben pair counts, not Alice-Carla. The
+        # scores differ because the model rejects byte-identical duplicates.
         earlier_same_time = Match.objects.create(player1=self.b, player2=self.a,
             score1=11, score2=5, date=self.day)
         current = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day)
-        # A later pk at the same timestamp does not count, and neither do
-        # future or unrelated matches. The score differs because the model
-        # rejects a byte-identical match as a duplicate.
-        Match.objects.create(player1=self.b, player2=self.a,
+        later_same_time = Match.objects.create(player1=self.b, player2=self.a,
             score1=11, score2=6, date=self.day)
-        Match.objects.create(player1=self.a, player2=self.b,
+        future = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day + timedelta(days=1))
         Match.objects.create(player1=self.a, player2=self.c,
             score1=11, score2=7, date=self.day - timedelta(days=1))
-        # The earliest meeting of the pair has no priors at all.
-        empty = self.head_to_head(earlier_same_time)
-        self.assertEqual(empty["results"], [])
-        self.assertEqual(empty["record"], {"player1_wins": 0, "player2_wins": 0})
         payload = self.head_to_head(current)
-        self.assertEqual([row["id"] for row in payload["results"]], [earlier_same_time.pk])
-        # Ben won the prior meeting; Ben is player2 on the current match.
-        self.assertEqual(payload["record"], {"player1_wins": 0, "player2_wins": 1})
+        self.assertEqual(payload["count"], 4)
+        self.assertEqual([row["id"] for row in payload["results"]],
+            [future.pk, later_same_time.pk, current.pk, earlier_same_time.pk])
+        # Alice (player1 on the selected match) won the selected and future
+        # meetings; Ben won the two meetings where he was player1.
+        self.assertEqual(payload["record"], {"player1_wins": 2, "player2_wins": 2})
 
     def test_results_are_cards_and_paginated(self):
         for index in range(21):
@@ -175,19 +174,22 @@ class HeadToHeadTests(TestCase):
         current = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=8, date=self.day + timedelta(minutes=21))
         first_page = self.head_to_head(current)
-        self.assertEqual(first_page["count"], 21)
+        self.assertEqual(first_page["count"], 22)
         self.assertEqual(len(first_page["results"]), 20)
-        # The record counts every prior meeting, not just the first page.
-        self.assertEqual(first_page["record"], {"player1_wins": 21, "player2_wins": 0})
+        # The record counts every meeting, including the selected match, not
+        # just the first page.
+        self.assertEqual(first_page["record"], {"player1_wins": 22, "player2_wins": 0})
         self.assertIn("player1_rating", first_page["results"][0])
-        self.assertEqual(len(self.head_to_head(current, page=2)["results"]), 1)
+        self.assertEqual(len(self.head_to_head(current, page=2)["results"]), 2)
 
-    def test_unknown_match_returns_404_and_stays_read_only(self):
+    def test_unknown_match_returns_404_and_anonymous_writes_are_rejected(self):
         self.assertEqual(self.client.get("/api/matches/99999/head-to-head/").status_code, 404)
         match = Match.objects.create(player1=self.a, player2=self.b,
             score1=11, score2=7, date=self.day)
+        # The action is GET-only, and unauthenticated requests meet the auth
+        # gate first: 401, not a written row.
         self.assertEqual(
-            self.client.post(f"/api/matches/{match.pk}/head-to-head/", {}).status_code, 405)
+            self.client.post(f"/api/matches/{match.pk}/head-to-head/", {}).status_code, 401)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

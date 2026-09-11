@@ -1,17 +1,22 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import ProtectedError, Q
 from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from rest_framework.exceptions import ValidationError
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.routers import DefaultRouter
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from ratings.services import recompute_all_ratings
+
+from . import imports
 from .models import Match, Player
-from .detail_data import player_matches, prior_meetings, profile_payload
+from .detail_data import pair_meetings, player_matches, profile_payload
 from .leaderboard import leaderboard_queryset
 from .match_cards import with_match_card_ratings
 from .serializers import (
@@ -22,18 +27,77 @@ from .serializers import (
     LeaderboardSerializer,
     PlayerListSerializer,
     PlayerDetailSerializer,
+    PlayerWriteSerializer,
+    MatchWriteSerializer,
 )
 
 
-class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
+def import_csv_response(request, columns, build, save):
+    """Shared two-step CSV import: preview first, write only on confirm.
 
+    Same parsing and validation as the HTML upload views and the management
+    commands. The client holds the file and sends it twice — once to preview,
+    once with ?confirm=1 — so no file text is stashed server-side, and a
+    roster change between the two requests is reflected in what is written.
+    """
+    upload = request.FILES.get("csv_file")
+    if upload is None:
+        raise ValidationError({"csv_file": "Choose a CSV file."})
+    if upload.size > imports.MAX_UPLOAD_BYTES:
+        raise ValidationError({"csv_file": "The file is too large (2 MB max)."})
+    try:
+        text = imports.read_upload_text(upload, upload.name)
+        rows = imports.rows_from_text(text, columns, upload.name)
+        to_create, skipped = build(rows)
+    except imports.CsvImportError as error:
+        raise ValidationError({"csv_file": str(error)})
+    labels = [getattr(obj, "_label", None) or str(obj) for obj in to_create]
+    skipped_rows = [{"line": line, "reason": reason} for line, reason in skipped]
+    if request.query_params.get("confirm") != "1":
+        # rows carry the structured card data the React preview renders.
+        cards = [getattr(obj, "_card", None) for obj in to_create]
+        return Response({"filename": upload.name, "pending": labels,
+                          "rows": cards, "skipped": skipped_rows})
+    if to_create:
+        save(to_create)
+    return Response({"filename": upload.name, "created": labels, "skipped": skipped_rows})
+
+
+def _batch_ids(request):
+    """Validates the shared {ids: [...]} payload of the batch-delete actions."""
+    ids = request.data.get("ids")
+    if (not isinstance(ids, list) or not ids
+            or not all(isinstance(raw_id, int) and not isinstance(raw_id, bool) and raw_id > 0
+                       for raw_id in ids)):
+        raise ValidationError({"ids": "Send a non-empty list of positive integer ids."})
+    return ids
+
+
+class PlayerViewSet(viewsets.ModelViewSet):
+
+    # Reads stay public; create/update/delete require an officer's JWT.
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = Player.objects.order_by("-rating")
 
     def get_serializer_class(self):
         # Dynamically switch serializers based on the requested API action
+        if self.action in ("create", "update", "partial_update"):
+            return PlayerWriteSerializer
         if self.action == 'retrieve':
             return PlayerDetailSerializer
         return PlayerListSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        # Player is PROTECTed by Match and RatingHistory, so deleting someone
+        # who has played is refused rather than erroring, like DeletePlayerView.
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This player has recorded matches and cannot be deleted. "
+                            "Those matches are what the other players' ratings were computed from."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     # Used instead of DRF's SearchFilter because search matches for names or IDs,
     # which the built-in filter can't express.
@@ -68,13 +132,47 @@ class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = MatchCardSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="import")
+    def import_csv(self, request):
+        # Officer-only bulk roster upload: preview first, write on confirm.
+        return import_csv_response(
+            request, imports.PLAYER_COLUMNS, imports.build_players, imports.save_players
+        )
 
-class MatchViewSet(viewsets.ReadOnlyModelViewSet):
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="batch-delete")
+    def batch_delete(self, request):
+        # Officers delete several players at once. Players with recorded
+        # matches are skipped, never force-deleted: their results are what
+        # everyone else's ratings were computed from (same rule as destroy).
+        ids = _batch_ids(request)
+        players = {player.pk: player for player in Player.objects.filter(pk__in=ids)}
+        deleted, skipped = [], []
+        # dict.fromkeys preserves the request order and drops duplicate ids.
+        for raw_id in dict.fromkeys(ids):
+            player = players.get(raw_id)
+            if player is None:
+                skipped.append({"id": raw_id, "reason": "This player no longer exists."})
+                continue
+            try:
+                player.delete()
+                deleted.append({"id": raw_id, "name": player.name})
+            except ProtectedError:
+                skipped.append({"id": raw_id, "name": player.name,
+                                "reason": "Has recorded matches and cannot be deleted."})
+        return Response({"deleted": deleted, "skipped": skipped})
+
+
+class MatchViewSet(viewsets.ModelViewSet):
+    # Reads stay public; log/edit/delete require an officer's JWT. Rating
+    # side effects of every write live in Match.save()/delete().
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = (
         Match.objects.select_related("player1", "player2").order_by("-date", "-pk")
     )
 
     def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return MatchWriteSerializer
         if self.action == "retrieve":
             if self.request.query_params.get("include") == "card":
                 return MatchDetailCardSerializer
@@ -141,15 +239,17 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"], url_path="head-to-head")
     def head_to_head(self, request, pk=None):
         match = self.get_object()
-        prior = prior_meetings(match)
+        # The record is the pair's global tally: the selected match and any
+        # later meetings count too, not just the meetings that came before it.
+        meetings = pair_meetings(match)
         record = {"player1_wins": 0, "player2_wins": 0}
-        for meeting in prior:
+        for meeting in meetings:
             winner_id = meeting.player1_id if meeting.score1 > meeting.score2 else meeting.player2_id
             if winner_id == match.player1_id:
                 record["player1_wins"] += 1
             elif winner_id == match.player2_id:
                 record["player2_wins"] += 1
-        queryset = with_match_card_ratings(prior.select_related("player1", "player2"))
+        queryset = with_match_card_ratings(meetings.select_related("player1", "player2"))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = MatchCardSerializer(page, many=True, context={"request": request})
@@ -159,6 +259,30 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = MatchCardSerializer(queryset, many=True, context={"request": request})
         return Response({"count": queryset.count(), "next": None, "previous": None,
                           "results": serializer.data, "record": record})
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="import")
+    def import_csv(self, request):
+        # Officer-only bulk match upload. save_matches rebuilds every rating
+        # once after the insert, so the file does not need to be chronological.
+        return import_csv_response(
+            request, imports.MATCH_COLUMNS, imports.build_matches, imports.save_matches
+        )
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="batch-delete")
+    def batch_delete(self, request):
+        ids = _batch_ids(request)
+        matches = Match.objects.filter(pk__in=ids)
+        found = set(matches.values_list("pk", flat=True))
+        skipped = [{"id": raw_id, "reason": "This match no longer exists."}
+                   for raw_id in dict.fromkeys(ids) if raw_id not in found]
+        # Bulk delete bypasses Match.delete()'s per-match replay on purpose:
+        # one recompute after all the deletions, like imports.save_matches.
+        with transaction.atomic():
+            matches.delete()
+            if found:
+                recompute_all_ratings()
+        return Response({"deleted": [{"id": raw_id} for raw_id in dict.fromkeys(ids) if raw_id in found],
+                          "skipped": skipped})
 
 
 class LeaderboardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

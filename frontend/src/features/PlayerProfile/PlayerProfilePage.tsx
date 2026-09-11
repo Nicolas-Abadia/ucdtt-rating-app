@@ -16,7 +16,8 @@ export default function PlayerProfilePage({ playerId }: { playerId: number }) {
   const { data: profile, loading, error, notFound, retry } = useApiResource(profilePath(playerId), parseProfile);
 
   return (
-    <PageLayout title="Player Profile" activePage="leaderboard" backLabel="Back to leaderboard" backHash="#leaderboard">
+    <PageLayout title="Player Profile" activePage="leaderboard" backLabel="Back to leaderboard" backHash="#leaderboard"
+      officerContext="player" officerResourceId={playerId}>
       {loading ? (
         <RequestState loading title="Loading player" message="The server may take a moment to respond." />
       ) : notFound ? (
@@ -51,7 +52,7 @@ function ProfileContent({ profile, playerId }: { profile: PlayerProfile; playerI
             </div>
             <span className={styles.rankBadge} aria-label={`Rank ${profile.rank}`}>#{profile.rank}</span>
           </div>
-          <h2 className={styles.name}>{profile.name}</h2>
+          <h2 className={styles.name} title={profile.name}>{profile.name}</h2>
           <span className={styles.playerId}>ID: <span className={styles.ucdttId}>{profile.id}</span></span>
           <dl className={styles.attributes}>
             <div><dt>Style</dt><dd>{profile.style}</dd></div>

@@ -1,0 +1,121 @@
+.form { display: flex; flex-direction: column; gap: 40px; padding-bottom: 104px; }
+.field { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.field > label, .fieldLabel {
+  font-size: var(--scale-2);
+  font-weight: var(--weight-extra-bold);
+  text-transform: uppercase;
+}
+.field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  padding: 13px 16px;
+  border: var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-extra-bold);
+}
+.field input[aria-invalid="true"] { border-color: var(--blood-red); }
+
+/* Live preview of the roster card, mirroring the player profile identity card. */
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px;
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  text-align: center;
+}
+.previewEmpty { box-shadow: none; }
+.previewAvatar, .previewAvatarSkeleton {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+}
+.previewAvatar {
+  display: grid;
+  place-items: center;
+  background: var(--avatar-bg);
+  color: var(--avatar-ink);
+  font-size: var(--scale-5);
+  font-weight: var(--weight-black);
+  text-transform: uppercase;
+}
+.previewAvatarSkeleton { background: var(--bg-primary); }
+.previewName { max-width: 100%; font-size: var(--scale-4); font-weight: var(--weight-black); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.previewNameSkeleton { width: min(60%, 180px); height: 26px; border-radius: 8px; background: var(--bg-primary); }
+.previewId { color: var(--text-muted); font-size: var(--scale-2); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.previewUcdttId { color: var(--daylight-sky-blue); font-weight: var(--weight-extra-bold); }
+.previewAttributes { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px 28px; margin-top: 6px; }
+.previewAttributes div { display: flex; flex-direction: column; gap: 2px; }
+.previewAttributes dt { font-size: 12px; color: var(--text-muted); }
+.previewAttributes dd { font-weight: var(--weight-extra-bold); font-variant-numeric: tabular-nums; }
+
+/* Card-scale segmented selectors, sharing the control border of the other
+   card buttons in the UI. */
+.segmented { display: flex; flex-wrap: wrap; gap: 12px; }
+.segment {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 10px 12px;
+  border: var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--scale-2);
+  font-weight: var(--weight-black);
+  cursor: pointer;
+}
+.segmentActive { border-color: var(--night-sky-blue); background: var(--night-sky-blue); color: var(--white); }
+
+/* Initial rating in the match-score control language, scaled up a step. */
+.ratingControl { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.ratingStep {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  border: 4px solid var(--night-sky-blue);
+  border-radius: 14px;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--scale-4);
+  font-weight: var(--weight-black);
+  line-height: 1;
+  cursor: pointer;
+}
+.ratingStep:disabled { opacity: 0.4; cursor: not-allowed; }
+.field .ratingInput {
+  width: 120px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: var(--scale-5);
+  font-weight: var(--weight-black);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.note { color: var(--text-muted); font-size: var(--scale-1); line-height: 1.45; }
+.fieldError { color: var(--rating-loss); font-size: var(--scale-2); line-height: 1.4; }
+.formError { padding: 14px 16px; border-left: 4px solid var(--blood-red); border-radius: 8px; background: var(--bg-surface); color: var(--rating-loss); line-height: 1.5; }
+.form :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .segment, .ratingStep { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+  @media (hover: hover) and (pointer: fine) {
+    .segment:hover { transform: translateY(-1px); }
+  }
+  .segment:active, .ratingStep:not(:disabled):active { transform: translateY(2px) scale(0.99); }
+}

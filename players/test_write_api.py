@@ -315,3 +315,48 @@ class BatchDeleteTests(TestCase):
         self.assertEqual(Match.objects.count(), 0)
         self.assertEqual(Player.objects.get(pk=self.a.pk).display_rating, 1200)
         self.assertEqual(Player.objects.get(pk=self.c.pk).display_rating, 1200)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class OfficerCreateTests(TestCase):
+    """Officer-only account creation, mirroring the HTML signup form."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.officer = User.objects.create_user("officer", password="test-pass-123")
+
+    def payload(self, **overrides):
+        data = {"username": "newofficer", "password1": "table-tennis-42", "password2": "table-tennis-42"}
+        data.update(overrides)
+        return data
+
+    def test_anonymous_cannot_create_officers(self):
+        response = self.client.post("/api/officers/", self.payload(), format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(User.objects.count(), 1)
+
+    def test_officer_can_create_an_officer(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/officers/", self.payload(), format="json")
+        self.assertEqual(response.status_code, 201)
+        created = User.objects.get(username="newofficer")
+        self.assertTrue(created.check_password("table-tennis-42"))
+
+    def test_duplicate_username_is_a_400(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/officers/", self.payload(username="officer"), format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
+
+    def test_mismatched_passwords_are_a_400(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/officers/", self.payload(password2="different-99"), format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password2", response.json())
+
+    def test_weak_passwords_are_a_400(self):
+        self.client.force_authenticate(self.officer)
+        response = self.client.post("/api/officers/",
+            self.payload(password1="12345678", password2="12345678"), format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(username="newofficer").exists())

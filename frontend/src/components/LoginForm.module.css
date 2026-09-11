@@ -26,5 +26,7 @@
 .loginForm input:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 2px; }
 .loginError { font-size: 12px; color: var(--rating-loss); }
 .session { display: flex; flex-direction: column; gap: 16px; }
+.addOfficer { align-self: flex-start; font-size: var(--scale-2); font-weight: var(--weight-extra-bold); color: var(--daylight-sky-blue); text-decoration: none; }
+.addOfficer:hover { text-decoration: underline; }
 .panelText { font-size: var(--scale-2); color: var(--text-muted); }
 .panelText strong { color: var(--text-main); }

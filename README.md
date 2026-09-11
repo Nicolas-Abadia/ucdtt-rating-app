@@ -1,4 +1,4 @@
-# Table Tennis Rating App v1 (Under Development)
+# Table Tennis Rating App v1.5 (Under Development)
 
 [![CI](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
@@ -30,7 +30,8 @@ A reusable table tennis rating system currently being developed for the **Table 
 - Imports players and match history in bulk from CSV, from the browser or the command line.
 - Displays every date and time in the viewer's own timezone.
 - Lets a signed-in officer change their own username and password.
-- Provides a public read-only REST API for player and match data.
+- Lets officers log, edit, and delete matches, add, edit, and delete players, and bulk-import or bulk-delete both, from the React app or the server-rendered pages.
+- Provides a public REST API for player and match data; officer-only write endpoints (create, update, delete, CSV import, batch delete) authenticate with JWT.
 
 ## Tech stack
 
@@ -39,8 +40,9 @@ A reusable table tennis rating system currently being developed for the **Table 
 - PostgreSQL 16 locally via Docker; any compatible PostgreSQL host in production
 - Python 3.13
 - `dj-database-url` for database configuration
+- `djangorestframework-simplejwt` for officer JWT auth
 - `gunicorn` as the WSGI server, `whitenoise` for static file serving
-- React and TypeScript frontend in `frontend/`, built with Vite
+- React and TypeScript frontend in `frontend/`, built with Vite, tested with Vitest
 
 ## Local setup
 
@@ -81,7 +83,7 @@ python manage.py test
 ```
 
 ## REST API
-A public read-only API exposes player and match data as JSON. It also includes a browsable interface, so the endpoints can be explored directly in a browser without a separate frontend.
+Player and match data is exposed as JSON. Reads are public; writes are officer-only and authenticate with JWT (below). The API includes a browsable interface, so the public endpoints can be explored directly in a browser without a separate frontend.
 
 | Resource | List endpoint | Detail endpoint |
 | --- | --- | --- |
@@ -106,7 +108,24 @@ Player and match lists use page-number pagination with 20 results per page. Matc
 
 `/api/leaderboard/` returns an unpaginated JSON array with exactly `id`, `name`, `rank`, `display_rating`, `wins`, and `losses`. Wins/losses are calculated from recorded match scores, including both player positions; no stored counters or migration are required. Rank uses the exact stored rating, with equal ratings sharing competition ranks (1, 1, 3). Name and ID provide stable ordering within ties. The React leaderboard filters this complete roster locally and preserves server ranks. This compact full-roster response suits a club-sized deployment; large deployments should introduce server-side search and pagination without recalculating ranks within each page.
 
-Data endpoints expose only `GET`, `HEAD`, and `OPTIONS`. JWT token obtain/refresh endpoints exist at `/api/token/` and `/api/token/refresh/`; authenticated data-write endpoints are not implemented.
+Match endpoints accept `?include=card` to add the card annotations the React app renders (player names, wins/losses, and rating before/after each side). `/api/matches/<id>/head-to-head/` returns the pair's global record — counting every meeting, before and after the selected match — plus their paginated meetings newest first.
+
+### Officer write endpoints
+
+Officer writes authenticate with a bearer token: obtain with `POST /api/token/`, refresh with `POST /api/token/refresh/`, and revoke the refresh token on logout with `POST /api/token/blacklist/`. Access tokens live 30 minutes; refresh tokens rotate and are blacklisted on use.
+
+| Operation | Endpoint |
+| --- | --- |
+| Create / update / delete a player | `POST /api/players/`, `PUT\|PATCH\|DELETE /api/players/<id>/` |
+| Create / update / delete a match | `POST /api/matches/`, `PUT\|PATCH\|DELETE /api/matches/<id>/` |
+| Preview or run a CSV import | `POST /api/players/import/`, `POST /api/matches/import/` |
+| Delete many rows at once | `POST /api/players/batch-delete/`, `POST /api/matches/batch-delete/` with `{"ids": [...]}` |
+
+Writes enforce the same rules as the HTML forms: distinct players, non-negative unequal scores, no future dates, and a case-insensitively unique player name. Editing or deleting a match replays the affected ratings. Deleting a player with recorded matches is refused with `409`, because their results feed everyone else's ratings.
+
+Import endpoints take a multipart `csv_file`. The default response is a preview (`{"filename", "rows", "skipped", ...}`) that writes nothing; adding `?confirm=1` performs the import. Parsing, validation, and the single rating rebuild are shared with the management commands and the HTML importer through `players/imports.py`.
+
+Batch delete removes the listed rows and never fails the whole batch over individual rows: players with recorded matches and unknown ids come back under `skipped` (`{"id", "name?", "reason"}`) while the rest are deleted. Match batches recompute ratings once after all deletions, like the CSV importer.
 
 The server-rendered match list additionally supports an exact match-ID filter, separate from player search: `/matches/?match_id=42`. It combines with `q` and `date`; invalid or unknown IDs return no matches.
 
@@ -242,20 +261,25 @@ Setting `DJANGO_DEBUG=False` also switches on HTTPS redirects, secure cookies, H
 
 ### React frontend
 
+The React app is the primary interface, deployed separately as a static build. It talks to this API with `VITE_API_BASE_URL` set to the backend origin at build time, and the backend's `CORS_ALLOWED_ORIGINS` lists the frontend's exact origin.
+
 ```bash
 cd frontend
 npm ci
-npm run build
-npm run dev
+npm run dev    # Vite dev server, proxies /api to the local Django server
+npm run build  # type-check and production build into dist/
+npm run lint   # ESLint
+npm test       # Vitest parser and routing tests
 ```
 
-During development, Vite proxies `/api` to the local Django server. For production, either configure a same-origin `/api` reverse proxy or set `VITE_API_BASE_URL` to the backend origin at build time. A separately hosted frontend also requires its exact origin in Django's `CORS_ALLOWED_ORIGINS`, which is currently empty. The Vite development proxy does not apply to the production build. Serve `frontend/dist/` from a static host; no particular provider is required.
+It is a single-page app with hash routes, so the static host needs no rewrite rules. Public routes cover the leaderboard, match history, player profiles, and match detail. Officer routes — login, log/edit match, add/edit player, and the CSV import pages — sit behind the JWT session kept in localStorage. Single-record deletes happen inline from the navigation dock (a two-step red confirm), and the dock's Delete action opens a batch-delete picker for removing many players or matches at once. The write forms share one confirmation dock: disabled until the form is valid, a slow breathing glow in the flow's accent color (gold for matches, blue for players, purple for imports, red for deletes), and a red shake on validation errors.
 
 ## Project structure
 
 - `config/` — Django settings and URL routing
 - `players/` — Players, matches, rating history, views, and management commands
 - `ratings/` — Pure Elo math and rating service layer
+- `frontend/` — React + TypeScript single-page app (the primary interface)
 - `docs/` — Screenshots of the deployed app
 
 ## License

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import Icon from '../../components/Icon';
 import PageLayout from '../../components/PageLayout';
 import RequestState from '../../components/RequestState';
@@ -6,6 +6,7 @@ import SearchField from '../../components/SearchField';
 import { ApiError } from '../../services/api';
 import { authFetch, useAuth } from '../../services/auth';
 import useApiResource from '../../services/useApiResource';
+import useMagneticDock from '../../services/useMagneticDock';
 import { AVATAR_COLORS } from '../../styles/tokens';
 import type { MatchSummary } from '../../types/match';
 import type { PlayerData } from '../Leaderboard/types';
@@ -129,6 +130,8 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useMagneticDock(dockRef);
 
   const numericScore1 = Number(draft.score1);
   const numericScore2 = Number(draft.score2);
@@ -233,7 +236,7 @@ function MatchEditor({ players, match }: { players: PlayerData[]; match?: MatchS
         </section>
 
         {error && <p className={styles.formError} role="alert">{error}</p>}
-        <div className={`${styles.formActionDock} ${canSubmit && !submitting ? styles.attention : ''}`}>
+        <div ref={dockRef} className={`${styles.formActionDock} ${canSubmit && !submitting ? styles.attention : ''}`}>
           <button type="submit" className={styles.submit} disabled={!canSubmit || submitting}>
             <span>{submitting ? 'Saving…' : match ? 'Save match' : 'Log this match'}</span>
             <span className={styles.submitArrow} aria-hidden="true"><Icon name="arrow" size={24} /></span>

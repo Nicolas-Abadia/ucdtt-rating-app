@@ -12,7 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Match, Player
-from .detail_data import player_matches, prior_meetings, profile_payload
+from .detail_data import pair_meetings, player_matches, profile_payload
 from .leaderboard import leaderboard_queryset
 from .match_cards import with_match_card_ratings
 from .serializers import (
@@ -165,15 +165,17 @@ class MatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="head-to-head")
     def head_to_head(self, request, pk=None):
         match = self.get_object()
-        prior = prior_meetings(match)
+        # The record is the pair's global tally: the selected match and any
+        # later meetings count too, not just the meetings that came before it.
+        meetings = pair_meetings(match)
         record = {"player1_wins": 0, "player2_wins": 0}
-        for meeting in prior:
+        for meeting in meetings:
             winner_id = meeting.player1_id if meeting.score1 > meeting.score2 else meeting.player2_id
             if winner_id == match.player1_id:
                 record["player1_wins"] += 1
             elif winner_id == match.player2_id:
                 record["player2_wins"] += 1
-        queryset = with_match_card_ratings(prior.select_related("player1", "player2"))
+        queryset = with_match_card_ratings(meetings.select_related("player1", "player2"))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = MatchCardSerializer(page, many=True, context={"request": request})

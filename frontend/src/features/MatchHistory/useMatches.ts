@@ -22,7 +22,7 @@ export default function useMatches(query: string, page: number, date = '') {
       timeout = window.setTimeout(() => {
         timedOut = true;
         controller.abort();
-      }, 90000);
+      }, 5000);
       try {
         const data = await fetchMatches(query, page, controller.signal, date);
         if (!disposed) setResult({ key, data, error: null });

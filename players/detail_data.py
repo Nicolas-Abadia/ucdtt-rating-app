@@ -51,8 +51,13 @@ def profile_payload(player):
     }
 
 
-def prior_meetings(match):
+def pair_meetings(match):
+    """Every meeting between the pair, newest first.
+
+    Deliberately not relative to the selected match: the head-to-head shown
+    on a match detail page is the pair's global record, so earlier, current,
+    and later meetings all count.
+    """
     pair = (Q(player1_id=match.player1_id, player2_id=match.player2_id)
             | Q(player1_id=match.player2_id, player2_id=match.player1_id))
-    earlier = Q(date__lt=match.date) | Q(date=match.date, pk__lt=match.pk)
-    return Match.objects.filter(pair & earlier).order_by("-date", "-pk")
+    return Match.objects.filter(pair).order_by("-date", "-pk")

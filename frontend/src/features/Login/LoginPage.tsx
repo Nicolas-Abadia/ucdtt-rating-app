@@ -34,15 +34,19 @@ export default function LoginPage() {
             onStateChange={setLoginState} onSuccess={goHome} />
         </div>
       </main>
-      <NavigationMenu activePage="leaderboard" isOfficer={username !== null}
-        primaryAction={username ? undefined : {
-          label: 'Officer login',
-          activeLabel: 'Logging in…',
-          accent: 'blue',
-          disabled: !loginState.canSubmit,
-          busy: loginState.busy,
-          form: LOGIN_FORM_ID,
-        }} />
+      {/* The dock exists on this screen only to own the sign-in action. A
+          signed-in officer sees no navigation here at all. */}
+      {!username && (
+        <NavigationMenu activePage="leaderboard" isOfficer={false}
+          primaryAction={{
+            label: 'Officer login',
+            activeLabel: 'Logging in…',
+            accent: 'blue',
+            disabled: !loginState.canSubmit,
+            busy: loginState.busy,
+            form: LOGIN_FORM_ID,
+          }} />
+      )}
     </div>
   );
 }

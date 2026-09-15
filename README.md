@@ -8,7 +8,7 @@
 A reusable table tennis rating system currently being developed for the **Table Tennis Club at UC Davis**.
 
 **Server-rendered app: <https://ucdtt-rating-app.onrender.com>**  
-**Browsable API: <https://ucdtt-rating-app.onrender.com/api/>**
+**Browsable API: <https://ucdtt-rating-app.onrender.com/api/>**  
 **React frontend app: <https://ucdtt-rating-app.vercel.app/>**
 
 > Hosted on Render's free tier, which spins the service down after roughly 15 minutes of inactivity. The first request after a quiet period takes about 50 seconds while the service wakes up. Everything after that is fast.

@@ -1,4 +1,4 @@
-# Table Tennis Rating App v1.5 (Under Development)
+# Table Tennis Rating App v1.5
 
 [![CI](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas-Abadia/ucdtt-rating-app/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)

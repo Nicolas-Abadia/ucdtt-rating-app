@@ -13,13 +13,7 @@ A reusable table tennis rating system currently being developed for the **Table 
 
 > Hosted on Render's free tier, which spins the service down after roughly 15 minutes of inactivity. The first request after a quiet period takes about 50 seconds while the service wakes up. Everything after that is fast.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v1/leaderboard-screenshot.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/v1/leaderboard-light-screenshot.png">
-  <img alt="Leaderboard Screenshot" src="docs/screenshots/v1/leaderboard-screenshot.png">
-</picture>
-
-[Screenshots of every page](docs/screenshots/v1/README.md)
+https://github.com/user-attachments/assets/f45b7948-0b2f-44c0-abce-1efdd89454d4
 
 ## What it does
 

@@ -5,7 +5,7 @@
 ![Django](https://img.shields.io/badge/django-6.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-A reusable table tennis rating system currently being developed for the **Table Tennis Club at UC Davis**.
+A reusable table tennis rating system currently being developed for the **Aggie Table Tennis Club** at UC Davis.
 
 **Server-rendered app: <https://ucdtt-rating-app.onrender.com>**  
 **Browsable API: <https://ucdtt-rating-app.onrender.com/api/>**  
